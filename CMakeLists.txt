@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
 project(SandboxDirectX12)
 set(CMAKE_CXX_STANDARD 17)
-add_executable(${PROJECT_NAME} WIN32 main.cpp)
+add_executable(${PROJECT_NAME} WIN32 main.cpp Utils.hpp MainWindow.hpp)
 target_link_libraries(${PROJECT_NAME}  d3d12.lib dxgi.lib dxguid.lib)
