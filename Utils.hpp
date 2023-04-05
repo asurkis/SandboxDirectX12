@@ -2,11 +2,18 @@
 
 // #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#include <exception>
+#include <ios>
+#include <sstream>
+#include <stdexcept>
 
 #define Assert(hr)                                                                                                     \
     do                                                                                                                 \
     {                                                                                                                  \
-        if (FAILED(hr))                                                                                                \
-            throw std::exception(__FILE__ ":" #hr);                                                                    \
+        HRESULT hr_ = hr;                                                                                              \
+        if (FAILED(hr_))                                                                                               \
+        {                                                                                                              \
+            std::stringstream ss_;                                                                                     \
+            ss_ << __FILE__ ":" #hr " HRESULT = 0x" << std::hex << hr_;                                                \
+            throw std::runtime_error(ss_.str());                                                                       \
+        }                                                                                                              \
     } while (0)
