@@ -4,10 +4,9 @@
 #include <Windows.h>
 #include <exception>
 
-inline void ThrowIfFailed(HRESULT hr)
-{
-    if (FAILED(hr))
-    {
-        throw std::exception();
-    }
-}
+#define Assert(hr)                                                                                                     \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        if (FAILED(hr))                                                                                                \
+            throw std::exception(__FILE__ ":" #hr);                                                                    \
+    } while (0)

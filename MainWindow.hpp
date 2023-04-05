@@ -19,7 +19,7 @@ class WindowClass
         cls.cbClsExtra = 0;
         cls.cbWndExtra = 0;
         cls.hInstance = hInstance;
-        cls.hIcon = LoadIcon(hInstance, nullptr);
+        cls.hIcon = nullptr; // LoadIconW(hInstance, 0);
         cls.hCursor = LoadCursor(hInstance, IDC_ARROW);
         cls.hbrBackground = (HBRUSH)COLOR_WINDOW;
         cls.lpszMenuName = nullptr;
@@ -67,9 +67,18 @@ class Window
         windowRect.bottom = windowRect.top + height;
         AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
 
-        hWnd = CreateWindowExW(0, cls.Name(), title, WS_OVERLAPPEDWINDOW, windowRect.left, windowRect.top,
-                               windowRect.right - windowRect.left, windowRect.bottom - windowRect.top, HWND_DESKTOP,
-                               nullptr, hInstance, nullptr);
+        hWnd = CreateWindowExW(0,
+                               cls.Name(),
+                               title,
+                               WS_OVERLAPPEDWINDOW,
+                               windowRect.left,
+                               windowRect.top,
+                               windowRect.right - windowRect.left,
+                               windowRect.bottom - windowRect.top,
+                               HWND_DESKTOP,
+                               nullptr,
+                               hInstance,
+                               nullptr);
         if (!hWnd)
         {
             DWORD err = GetLastError();
