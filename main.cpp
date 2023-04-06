@@ -141,6 +141,49 @@ PDevice CreateDevice(ComPtr<IDXGIAdapter4> adapter)
         queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
     }
 #endif
+
+    // Enable debug messages in debug mode.
+#if defined(_DEBUG)
+    ComPtr<ID3D12InfoQueue> pInfoQueue;
+    if (SUCCEEDED(device.As(&pInfoQueue)))
+    {
+        pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+        pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+        pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, FALSE);
+
+        // Suppress whole categories of messages
+        // D3D12_MESSAGE_CATEGORY Categories[] = {};
+
+        // Suppress messages based on their severity level
+        D3D12_MESSAGE_SEVERITY Severities[] = {D3D12_MESSAGE_SEVERITY_INFO};
+
+        // Suppress individual messages by their ID
+        D3D12_MESSAGE_ID DenyIds[] = {
+            D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE, // I'm really not sure how to avoid this
+                                                                          // message.
+            D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,   // This warning occurs when using capture frame while graphics
+                                                      // debugging.
+            D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE, // This warning occurs when using capture frame while graphics
+                                                      // debugging.
+
+            D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,
+            D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,
+            // Workarounds for debug layer issues on hybrid-graphics systems
+            D3D12_MESSAGE_ID_EXECUTECOMMANDLISTS_WRONGSWAPCHAINBUFFERREFERENCE,
+            D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE,
+        };
+
+        D3D12_INFO_QUEUE_FILTER NewFilter = {};
+        // NewFilter.DenyList.NumCategories = _countof(Categories);
+        // NewFilter.DenyList.pCategoryList = Categories;
+        NewFilter.DenyList.NumSeverities = _countof(Severities);
+        NewFilter.DenyList.pSeverityList = Severities;
+        NewFilter.DenyList.NumIDs = _countof(DenyIds);
+        NewFilter.DenyList.pIDList = DenyIds;
+
+        Assert(pInfoQueue->PushStorageFilter(&NewFilter));
+    }
+#endif
     return device;
 }
 
@@ -291,16 +334,14 @@ void Update()
 
     ++frameCounter;
     auto t1 = clock.now();
-    std::chrono::duration<double, std::nano> dt = t1 - t0;
+    std::chrono::duration<double> dt = t1 - t0;
     // t0 = t1;
 
     double elapsedSeconds = dt.count();
     if (elapsedSeconds > 1.0)
     {
         std::wstringstream ss;
-        ss << L"FPS: ";
-        ss.precision(3);
-        ss << elapsedSeconds / frameCounter << '\n';
+        ss << L"FPS: " << frameCounter / elapsedSeconds << '\n';
         OutputDebugStringW(ss.str().c_str());
         frameCounter = 0;
         t0 = t1;
