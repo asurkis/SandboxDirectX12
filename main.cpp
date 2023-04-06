@@ -19,9 +19,16 @@
 using Microsoft::WRL::ComPtr;
 
 using PDevice = ComPtr<ID3D12Device2>;
+using PCommandQueue = ComPtr<ID3D12CommandQueue>;
+using PSwapChain = ComPtr<IDXGISwapChain4>;
+using PGraphicsCommandList = ComPtr<ID3D12GraphicsCommandList>;
+using PCommandAllocator = ComPtr<ID3D12CommandAllocator>;
+using PDescriptorHeap = ComPtr<ID3D12DescriptorHeap>;
+using PFence = ComPtr<ID3D12Fence>;
+using PResource = ComPtr<ID3D12Resource>;
 
 const UINT g_NumFrames = 3;
-ComPtr<ID3D12Resource> g_BackBuffers[g_NumFrames];
+PResource g_BackBuffers[g_NumFrames];
 
 bool g_UseWarp = false;
 uint32_t g_ClientWidth = 1280;
@@ -36,16 +43,16 @@ RECT g_WindowRect;
 
 // DirectX 12 Objects
 PDevice g_Device;
-ComPtr<ID3D12CommandQueue> g_CommandQueue;
-ComPtr<IDXGISwapChain4> g_SwapChain;
-ComPtr<ID3D12GraphicsCommandList> g_CommandList;
-ComPtr<ID3D12CommandAllocator> g_CommandAllocators[g_NumFrames];
-ComPtr<ID3D12DescriptorHeap> g_RTVDescriptorHeap;
+PCommandQueue g_CommandQueue;
+PSwapChain g_SwapChain;
+PGraphicsCommandList g_CommandList;
+PCommandAllocator g_CommandAllocators[g_NumFrames];
+PDescriptorHeap g_RTVDescriptorHeap;
 UINT g_RTVDescriptorSize;
 UINT g_CurrentBackBufferIndex;
 
 // Synchronization objects
-ComPtr<ID3D12Fence> g_Fence;
+PFence g_Fence;
 uint64_t g_FenceValue = 0;
 uint64_t g_FrameFenceValues[g_NumFrames] = {};
 HANDLE g_FenceEvent;
@@ -65,15 +72,15 @@ void ParseCommandLineArguments()
 
     for (size_t i = 0; i < argc; ++i)
     {
-        if (::wcscmp(argv[i], L"-w") == 0 || ::wcscmp(argv[i], L"--width") == 0)
+        if (wcscmp(argv[i], L"-w") == 0 || wcscmp(argv[i], L"--width") == 0)
         {
             g_ClientWidth = ::wcstol(argv[++i], nullptr, 10);
         }
-        if (::wcscmp(argv[i], L"-h") == 0 || ::wcscmp(argv[i], L"--height") == 0)
+        if (wcscmp(argv[i], L"-h") == 0 || wcscmp(argv[i], L"--height") == 0)
         {
             g_ClientHeight = ::wcstol(argv[++i], nullptr, 10);
         }
-        if (::wcscmp(argv[i], L"-warp") == 0 || ::wcscmp(argv[i], L"--warp") == 0)
+        if (wcscmp(argv[i], L"-warp") == 0 || wcscmp(argv[i], L"--warp") == 0)
         {
             g_UseWarp = true;
         }
@@ -101,18 +108,18 @@ ComPtr<IDXGIAdapter4> GetAdapter(bool useWarp)
 #ifdef _DEBUG
     createFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 #endif
-    ComPtr<IDXGIFactory4> dxgiFactory;
-    Assert(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
+    ComPtr<IDXGIFactory4> factory;
+    Assert(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&factory)));
     ComPtr<IDXGIAdapter1> adapter1;
     ComPtr<IDXGIAdapter4> adapter4;
     if (useWarp)
     {
-        Assert(dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&adapter1)));
+        Assert(factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter1)));
         Assert(adapter1.As(&adapter4));
         return adapter4;
     }
     SIZE_T maxDedicatedVram = 0;
-    for (UINT i = 0; dxgiFactory->EnumAdapters1(i, &adapter1) != DXGI_ERROR_NOT_FOUND; ++i)
+    for (UINT i = 0; factory->EnumAdapters1(i, &adapter1) != DXGI_ERROR_NOT_FOUND; ++i)
     {
         DXGI_ADAPTER_DESC1 desc1;
         adapter1->GetDesc1(&desc1);
@@ -187,7 +194,7 @@ PDevice CreateDevice(ComPtr<IDXGIAdapter4> adapter)
     return device;
 }
 
-ComPtr<ID3D12CommandQueue> CreateCommandQueue(PDevice device, D3D12_COMMAND_LIST_TYPE type)
+PCommandQueue CreateCommandQueue(PDevice device, D3D12_COMMAND_LIST_TYPE type)
 {
     D3D12_COMMAND_QUEUE_DESC desc = {};
     desc.Type = type;
@@ -195,7 +202,7 @@ ComPtr<ID3D12CommandQueue> CreateCommandQueue(PDevice device, D3D12_COMMAND_LIST
     desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
     desc.NodeMask = 0;
 
-    ComPtr<ID3D12CommandQueue> queue;
+    PCommandQueue queue;
     Assert(device->CreateCommandQueue(&desc, IID_PPV_ARGS(&queue)));
     return queue;
 }
@@ -211,8 +218,7 @@ bool CheckTearingSupport()
     return allowTearing;
 }
 
-ComPtr<IDXGISwapChain4> CreateSwapChain(
-    HWND hWnd, ComPtr<ID3D12CommandQueue> commandQueue, UINT width, UINT height, UINT bufferCount)
+PSwapChain CreateSwapChain(HWND hWnd, PCommandQueue commandQueue, UINT width, UINT height, UINT bufferCount)
 {
     UINT createFactoryFlags = 0;
 #ifdef _DEBUG
@@ -239,29 +245,29 @@ ComPtr<IDXGISwapChain4> CreateSwapChain(
     ComPtr<IDXGISwapChain1> chain1;
     Assert(factory->CreateSwapChainForHwnd(commandQueue.Get(), hWnd, &desc, nullptr, nullptr, &chain1));
     Assert(factory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
-    ComPtr<IDXGISwapChain4> chain4;
+    PSwapChain chain4;
     Assert(chain1.As(&chain4));
     return chain4;
 }
 
-ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(PDevice device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT numDescriptors)
+PDescriptorHeap CreateDescriptorHeap(PDevice device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT numDescriptors)
 {
     D3D12_DESCRIPTOR_HEAP_DESC desc = {};
     desc.NumDescriptors = numDescriptors;
     desc.Type = type;
 
-    ComPtr<ID3D12DescriptorHeap> heap;
+    PDescriptorHeap heap;
     Assert(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heap)));
     return heap;
 }
 
-void UpdateRenderTargetViews(PDevice device, ComPtr<IDXGISwapChain4> swapChain, ComPtr<ID3D12DescriptorHeap> heap)
+void UpdateRenderTargetViews(PDevice device, PSwapChain swapChain, PDescriptorHeap heap)
 {
     UINT rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(heap->GetCPUDescriptorHandleForHeapStart());
     for (UINT i = 0; i < g_NumFrames; ++i)
     {
-        ComPtr<ID3D12Resource> backBuffer;
+        PResource backBuffer;
         Assert(swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
         device->CreateRenderTargetView(backBuffer.Get(), nullptr, rtvHandle);
         g_BackBuffers[i] = backBuffer;
@@ -269,26 +275,24 @@ void UpdateRenderTargetViews(PDevice device, ComPtr<IDXGISwapChain4> swapChain, 
     }
 }
 
-ComPtr<ID3D12CommandAllocator> CreateCommandAllocator(PDevice device, D3D12_COMMAND_LIST_TYPE type)
+PCommandAllocator CreateCommandAllocator(PDevice device, D3D12_COMMAND_LIST_TYPE type)
 {
-    ComPtr<ID3D12CommandAllocator> allocator;
+    PCommandAllocator allocator;
     Assert(device->CreateCommandAllocator(type, IID_PPV_ARGS(&allocator)));
     return allocator;
 }
 
-ComPtr<ID3D12GraphicsCommandList> CreateCommandList(PDevice device,
-                                                    ComPtr<ID3D12CommandAllocator> allocator,
-                                                    D3D12_COMMAND_LIST_TYPE type)
+PGraphicsCommandList CreateCommandList(PDevice device, PCommandAllocator allocator, D3D12_COMMAND_LIST_TYPE type)
 {
-    ComPtr<ID3D12GraphicsCommandList> list;
+    PGraphicsCommandList list;
     Assert(device->CreateCommandList(0, type, allocator.Get(), nullptr, IID_PPV_ARGS(&list)));
     Assert(list->Close());
     return list;
 }
 
-ComPtr<ID3D12Fence> CreateFence(PDevice device)
+PFence CreateFence(PDevice device)
 {
-    ComPtr<ID3D12Fence> fence;
+    PFence fence;
     Assert(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
     return fence;
 }
@@ -301,14 +305,14 @@ HANDLE CreateEventHandle()
     return fenceEvent;
 }
 
-UINT64 Signal(ComPtr<ID3D12CommandQueue> commandQueue, ComPtr<ID3D12Fence> fence, UINT64 &fenceValue)
+UINT64 Signal(PCommandQueue commandQueue, PFence fence, UINT64 &fenceValue)
 {
     UINT64 fenceValueForSignal = ++fenceValue;
     Assert(commandQueue->Signal(fence.Get(), fenceValueForSignal));
     return fenceValueForSignal;
 }
 
-void WaitForFenceValue(ComPtr<ID3D12Fence> fence, UINT64 fenceValue, HANDLE fenceEvent, DWORD milliseconds = DWORD_MAX)
+void WaitForFenceValue(PFence fence, UINT64 fenceValue, HANDLE fenceEvent, DWORD milliseconds = DWORD_MAX)
 {
     if (fence->GetCompletedValue() < fenceValue)
     {
@@ -317,7 +321,7 @@ void WaitForFenceValue(ComPtr<ID3D12Fence> fence, UINT64 fenceValue, HANDLE fenc
     }
 }
 
-void Flush(ComPtr<ID3D12CommandQueue> commandQueue, ComPtr<ID3D12Fence> fence, UINT64 &fenceValue, HANDLE fenceEvent)
+void Flush(PCommandQueue commandQueue, PFence fence, UINT64 &fenceValue, HANDLE fenceEvent)
 {
     UINT64 fenceValueForSignal = Signal(commandQueue, fence, fenceValue);
     WaitForFenceValue(fence, fenceValueForSignal, fenceEvent);
@@ -325,7 +329,7 @@ void Flush(ComPtr<ID3D12CommandQueue> commandQueue, ComPtr<ID3D12Fence> fence, U
 
 void Update()
 {
-    static UINT64 frameCounter = 0;
+    static uint64_t frameCounter = 0;
     static std::chrono::high_resolution_clock clock;
     static auto t0 = clock.now();
 
@@ -347,8 +351,8 @@ void Update()
 
 void Render()
 {
-    auto commandAllocator = g_CommandAllocators[g_CurrentBackBufferIndex];
-    auto backBuffer = g_BackBuffers[g_CurrentBackBufferIndex];
+    auto &&commandAllocator = g_CommandAllocators[g_CurrentBackBufferIndex];
+    auto &&backBuffer = g_BackBuffers[g_CurrentBackBufferIndex];
     commandAllocator->Reset();
     {
         g_CommandList->Reset(commandAllocator.Get(), nullptr);
@@ -470,10 +474,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         case VK_RETURN:
             if (alt)
-            {
-            case VK_F11:
                 SetFullscreen(!g_Fullscreen);
-            }
+            break;
+
+        case VK_F11:
+            SetFullscreen(!g_Fullscreen);
             break;
         }
         break;
