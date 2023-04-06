@@ -202,8 +202,6 @@ ComPtr<ID3D12CommandQueue> CreateCommandQueue(PDevice device, D3D12_COMMAND_LIST
 
 bool CheckTearingSupport()
 {
-    return false;
-    /*
     ComPtr<IDXGIFactory5> factory5;
     if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory5))))
         return false;
@@ -211,7 +209,6 @@ bool CheckTearingSupport()
     if (FAILED(factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing))))
         return false;
     return allowTearing;
-    */
 }
 
 ComPtr<IDXGISwapChain4> CreateSwapChain(
