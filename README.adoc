@@ -1,0 +1,18 @@
+= Учебный проект по DirectX 12
+:language: Russian
+:toc:
+:stem: asciimath
+// :source-highlighter: rouge
+// :source-language: cpp
+
+Для DirectX Headers используется git submodule,
+поэтому для клонирования нужно использовать команду
+[source]
+----
+git clone --recurse-submodules https://github.com/asurkis/SandboxDirectX12.git
+ИЛИ
+git clone --recurse-submodules git@github.com:asurkis/SandboxDirectX12.git
+----
+
+Visual Studio 2022 самостоятельно открывает проекты CMake,
+но его нужно открывать как директорию, а не как "`решение.`"
