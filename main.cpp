@@ -230,7 +230,7 @@ ComPtr<ID3D12Device2> CreateDevice(ComPtr<IDXGIAdapter4> adapter)
     {
         pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
         pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
-        pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
+        pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, FALSE);
 
         // Suppress whole categories of messages
         // D3D12_MESSAGE_CATEGORY Categories[] = {};
@@ -246,6 +246,12 @@ ComPtr<ID3D12Device2> CreateDevice(ComPtr<IDXGIAdapter4> adapter)
                                                       // debugging.
             D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE, // This warning occurs when using capture frame while graphics
                                                       // debugging.
+
+            D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,
+            D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,
+            // Workarounds for debug layer issues on hybrid-graphics systems
+            D3D12_MESSAGE_ID_EXECUTECOMMANDLISTS_WRONGSWAPCHAINBUFFERREFERENCE,
+            D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE,
         };
 
         D3D12_INFO_QUEUE_FILTER NewFilter = {};
@@ -501,7 +507,12 @@ void Render()
 
         UINT syncInterval = g_VSync ? 1 : 0;
         UINT presentFlags = g_TearingSupported && !g_VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
-        ThrowIfFailed(g_SwapChain->Present(syncInterval, presentFlags));
+        HRESULT result = 0;
+        result = g_SwapChain->Present(syncInterval, presentFlags);
+        if (FAILED(result))
+        {
+            ThrowIfFailed(result);
+        }
 
         g_FrameFenceValues[g_CurrentBackBufferIndex] = Signal(g_CommandQueue, g_Fence, g_FenceValue);
         g_CurrentBackBufferIndex = g_SwapChain->GetCurrentBackBufferIndex();
