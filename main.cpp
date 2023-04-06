@@ -80,6 +80,9 @@ bool g_TearingSupported = false;
 // Can be toggled with the Alt+Enter or F11
 bool g_Fullscreen = false;
 
+// Window callback function.
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+
 void ParseCommandLineArguments()
 {
     int argc;
