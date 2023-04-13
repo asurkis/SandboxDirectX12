@@ -5,6 +5,7 @@
 // #define WIN32_LEAN_AND_MEAN
 #include "CommandQueue.hpp"
 #include "Commons.hpp"
+#include "Device.hpp"
 #include "MainWindow.hpp"
 #include "Utils.hpp"
 
@@ -29,7 +30,6 @@ HWND g_hWnd;
 RECT g_WindowRect;
 
 // DirectX 12 Objects
-PDevice              g_Device;
 PSwapChain           g_SwapChain;
 PGraphicsCommandList g_CommandList;
 PCommandAllocator    g_CommandAllocators[g_NumFrames];
@@ -38,10 +38,8 @@ UINT                 g_RTVDescriptorSize;
 UINT                 g_CurrentBackBufferIndex;
 
 // Synchronization objects
-// PFence   g_Fence;
 uint64_t g_FenceValue                    = 0;
 uint64_t g_FrameFenceValues[g_NumFrames] = {};
-// HANDLE   g_FenceEvent;
 
 // By default, enable V-Sync.
 // Can be toggled with the V key.
@@ -51,6 +49,7 @@ bool g_TearingSupported = false;
 // Can be toggled with the Alt+Enter or F11
 bool g_Fullscreen = false;
 
+std::unique_ptr<Device>       g_Device;
 std::unique_ptr<CommandQueue> g_CommandQueue;
 
 void ParseCommandLineArguments()
@@ -121,65 +120,6 @@ ComPtr<IDXGIAdapter4> GetAdapter(bool useWarp)
         Assert(adapter1.As(&adapter4));
     }
     return adapter4;
-}
-
-PDevice CreateDevice(ComPtr<IDXGIAdapter4> adapter)
-{
-    PDevice device;
-    Assert(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&device)));
-#ifdef _DEBUG
-    ComPtr<ID3D12InfoQueue> queue;
-    if (SUCCEEDED(device.As(&queue)))
-    {
-        queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-        queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
-        queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
-    }
-#endif
-
-    // Enable debug messages in debug mode.
-#if defined(_DEBUG)
-    ComPtr<ID3D12InfoQueue> pInfoQueue;
-    if (SUCCEEDED(device.As(&pInfoQueue)))
-    {
-        pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-        pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
-        pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, FALSE);
-
-        // Suppress whole categories of messages
-        // D3D12_MESSAGE_CATEGORY Categories[] = {};
-
-        // Suppress messages based on their severity level
-        D3D12_MESSAGE_SEVERITY Severities[] = {D3D12_MESSAGE_SEVERITY_INFO};
-
-        // Suppress individual messages by their ID
-        D3D12_MESSAGE_ID DenyIds[] = {
-            D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE, // I'm really not sure how to avoid this
-                                                                          // message.
-            D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,   // This warning occurs when using capture frame while graphics
-                                                      // debugging.
-            D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE, // This warning occurs when using capture frame while graphics
-                                                      // debugging.
-
-            D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,
-            D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,
-            // Workarounds for debug layer issues on hybrid-graphics systems
-            D3D12_MESSAGE_ID_EXECUTECOMMANDLISTS_WRONGSWAPCHAINBUFFERREFERENCE,
-            D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE,
-        };
-
-        D3D12_INFO_QUEUE_FILTER NewFilter = {};
-        // NewFilter.DenyList.NumCategories = _countof(Categories);
-        // NewFilter.DenyList.pCategoryList = Categories;
-        NewFilter.DenyList.NumSeverities = _countof(Severities);
-        NewFilter.DenyList.pSeverityList = Severities;
-        NewFilter.DenyList.NumIDs        = _countof(DenyIds);
-        NewFilter.DenyList.pIDList       = DenyIds;
-
-        Assert(pInfoQueue->PushStorageFilter(&NewFilter));
-    }
-#endif
-    return device;
 }
 
 PCommandQueue CreateCommandQueue(PDevice device, D3D12_COMMAND_LIST_TYPE type)
@@ -263,21 +203,6 @@ void UpdateRenderTargetViews(PDevice device, PSwapChain swapChain, PDescriptorHe
     }
 }
 
-PCommandAllocator CreateCommandAllocator(PDevice device, D3D12_COMMAND_LIST_TYPE type)
-{
-    PCommandAllocator allocator;
-    Assert(device->CreateCommandAllocator(type, IID_PPV_ARGS(&allocator)));
-    return allocator;
-}
-
-PGraphicsCommandList CreateCommandList(PDevice device, PCommandAllocator allocator, D3D12_COMMAND_LIST_TYPE type)
-{
-    PGraphicsCommandList list;
-    Assert(device->CreateCommandList(0, type, allocator.Get(), nullptr, IID_PPV_ARGS(&list)));
-    Assert(list->Close());
-    return list;
-}
-
 void Update()
 {
     static uint64_t                           frameCounter = 0;
@@ -351,7 +276,7 @@ void Resize(UINT32 width, UINT32 height)
     Assert(g_SwapChain->GetDesc(&desc));
     Assert(g_SwapChain->ResizeBuffers(g_NumFrames, g_ClientWidth, g_ClientHeight, desc.BufferDesc.Format, desc.Flags));
     g_CurrentBackBufferIndex = g_SwapChain->GetCurrentBackBufferIndex();
-    UpdateRenderTargetViews(g_Device, g_SwapChain, g_RTVDescriptorHeap);
+    UpdateRenderTargetViews(g_Device->Get(), g_SwapChain, g_RTVDescriptorHeap);
 }
 
 void SetFullscreen(bool fullscreen)
@@ -444,6 +369,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         LONG width  = cr.right - cr.left;
         LONG height = cr.bottom - cr.top;
         Resize(width, height);
+        break;
     }
 
     default:
@@ -470,19 +396,19 @@ int CALLBACK wWinMain(_In_ HINSTANCE     hInstance,
     GetWindowRect(g_hWnd, &g_WindowRect);
 
     ComPtr<IDXGIAdapter4> adapter4 = GetAdapter(g_UseWarp);
-    g_Device                       = CreateDevice(adapter4);
-    g_CommandQueue                 = std::make_unique<CommandQueue>(g_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+    g_Device                       = std::make_unique<Device>(adapter4);
+    g_CommandQueue                 = std::make_unique<CommandQueue>(g_Device->Get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
     g_SwapChain = CreateSwapChain(g_hWnd, g_CommandQueue->Get(), g_ClientWidth, g_ClientHeight, g_NumFrames);
     g_CurrentBackBufferIndex = g_SwapChain->GetCurrentBackBufferIndex();
-    g_RTVDescriptorHeap      = CreateDescriptorHeap(g_Device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, g_NumFrames);
-    g_RTVDescriptorSize      = g_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    g_RTVDescriptorHeap      = CreateDescriptorHeap(g_Device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, g_NumFrames);
+    g_RTVDescriptorSize      = g_Device->Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-    UpdateRenderTargetViews(g_Device, g_SwapChain, g_RTVDescriptorHeap);
+    UpdateRenderTargetViews(g_Device->Get(), g_SwapChain, g_RTVDescriptorHeap);
 
     for (int i = 0; i < g_NumFrames; ++i)
-        g_CommandAllocators[i] = CreateCommandAllocator(g_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+        g_CommandAllocators[i] = g_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
     g_CommandList =
-        CreateCommandList(g_Device, g_CommandAllocators[g_CurrentBackBufferIndex], D3D12_COMMAND_LIST_TYPE_DIRECT);
+        g_Device->CreateCommandList(g_CommandAllocators[g_CurrentBackBufferIndex], D3D12_COMMAND_LIST_TYPE_DIRECT);
 
     g_IsInitialized = true;
     ShowWindow(g_hWnd, nShowCmd);

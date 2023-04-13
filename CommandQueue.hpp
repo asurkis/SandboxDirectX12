@@ -33,7 +33,7 @@ class CommandQueue
         CloseHandle(m_FenceEvent);
     }
 
-    PCommandQueue Get() const
+    PCommandQueue Get() const noexcept
     {
         return m_CommandQueue;
     }
