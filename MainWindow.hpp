@@ -60,7 +60,7 @@ class Window
     {
         int screenSizeX = GetSystemMetrics(SM_CXSCREEN);
         int screenSizeY = GetSystemMetrics(SM_CYSCREEN);
-        RECT windowRect;
+        RECT windowRect   = {};
         windowRect.left = (screenSizeX - width) / 2;
         windowRect.top = (screenSizeY - height) / 2;
         windowRect.right = windowRect.left + width;

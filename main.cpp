@@ -1,5 +1,9 @@
+#ifndef _DEBUG
 #define _DEBUG
+#endif
+
 // #define WIN32_LEAN_AND_MEAN
+#include "CommandQueue.hpp"
 #include "Commons.hpp"
 #include "MainWindow.hpp"
 #include "Utils.hpp"
@@ -26,7 +30,6 @@ RECT g_WindowRect;
 
 // DirectX 12 Objects
 PDevice              g_Device;
-PCommandQueue        g_CommandQueue;
 PSwapChain           g_SwapChain;
 PGraphicsCommandList g_CommandList;
 PCommandAllocator    g_CommandAllocators[g_NumFrames];
@@ -35,10 +38,10 @@ UINT                 g_RTVDescriptorSize;
 UINT                 g_CurrentBackBufferIndex;
 
 // Synchronization objects
-PFence   g_Fence;
+// PFence   g_Fence;
 uint64_t g_FenceValue                    = 0;
 uint64_t g_FrameFenceValues[g_NumFrames] = {};
-HANDLE   g_FenceEvent;
+// HANDLE   g_FenceEvent;
 
 // By default, enable V-Sync.
 // Can be toggled with the V key.
@@ -47,6 +50,8 @@ bool g_TearingSupported = false;
 // By default, use windowed mode.
 // Can be toggled with the Alt+Enter or F11
 bool g_Fullscreen = false;
+
+std::unique_ptr<CommandQueue> g_CommandQueue;
 
 void ParseCommandLineArguments()
 {
@@ -273,43 +278,6 @@ PGraphicsCommandList CreateCommandList(PDevice device, PCommandAllocator allocat
     return list;
 }
 
-PFence CreateFence(PDevice device)
-{
-    PFence fence;
-    Assert(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
-    return fence;
-}
-
-HANDLE CreateEventHandle()
-{
-    HANDLE fenceEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
-    if (!fenceEvent)
-        throw std::exception("Failed to create fence event");
-    return fenceEvent;
-}
-
-UINT64 Signal(PCommandQueue commandQueue, PFence fence, UINT64 &fenceValue)
-{
-    UINT64 fenceValueForSignal = ++fenceValue;
-    Assert(commandQueue->Signal(fence.Get(), fenceValueForSignal));
-    return fenceValueForSignal;
-}
-
-void WaitForFenceValue(PFence fence, UINT64 fenceValue, HANDLE fenceEvent, DWORD milliseconds = DWORD_MAX)
-{
-    if (fence->GetCompletedValue() < fenceValue)
-    {
-        Assert(fence->SetEventOnCompletion(fenceValue, fenceEvent));
-        WaitForSingleObject(fenceEvent, milliseconds);
-    }
-}
-
-void Flush(PCommandQueue commandQueue, PFence fence, UINT64 &fenceValue, HANDLE fenceEvent)
-{
-    UINT64 fenceValueForSignal = Signal(commandQueue, fence, fenceValue);
-    WaitForFenceValue(fence, fenceValueForSignal, fenceEvent);
-}
-
 void Update()
 {
     static uint64_t                           frameCounter = 0;
@@ -359,10 +327,10 @@ void Render()
         UINT syncInterval = g_VSync ? 1 : 0;
         UINT presentFlags = g_TearingSupported && !g_VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
         Assert(g_SwapChain->Present(syncInterval, presentFlags));
-        g_FrameFenceValues[g_CurrentBackBufferIndex] = Signal(g_CommandQueue, g_Fence, g_FenceValue);
+        g_FrameFenceValues[g_CurrentBackBufferIndex] = g_CommandQueue->Signal(g_FenceValue);
 
         g_CurrentBackBufferIndex = g_SwapChain->GetCurrentBackBufferIndex();
-        WaitForFenceValue(g_Fence, g_FrameFenceValues[g_CurrentBackBufferIndex], g_FenceEvent);
+        g_CommandQueue->WaitForFenceValue(g_FrameFenceValues[g_CurrentBackBufferIndex]);
     }
 }
 
@@ -372,7 +340,7 @@ void Resize(UINT32 width, UINT32 height)
         return;
     g_ClientWidth  = (std::max)(1u, width);
     g_ClientHeight = (std::max)(1u, height);
-    Flush(g_CommandQueue, g_Fence, g_FenceValue, g_FenceEvent);
+    g_CommandQueue->Flush(g_FenceValue);
     for (int i = 0; i < g_NumFrames; ++i)
     {
         g_BackBuffers[i].Reset();
@@ -503,8 +471,8 @@ int CALLBACK wWinMain(_In_ HINSTANCE     hInstance,
 
     ComPtr<IDXGIAdapter4> adapter4 = GetAdapter(g_UseWarp);
     g_Device                       = CreateDevice(adapter4);
-    g_CommandQueue                 = CreateCommandQueue(g_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
-    g_SwapChain              = CreateSwapChain(g_hWnd, g_CommandQueue, g_ClientWidth, g_ClientHeight, g_NumFrames);
+    g_CommandQueue                 = std::make_unique<CommandQueue>(g_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+    g_SwapChain = CreateSwapChain(g_hWnd, g_CommandQueue->Get(), g_ClientWidth, g_ClientHeight, g_NumFrames);
     g_CurrentBackBufferIndex = g_SwapChain->GetCurrentBackBufferIndex();
     g_RTVDescriptorHeap      = CreateDescriptorHeap(g_Device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, g_NumFrames);
     g_RTVDescriptorSize      = g_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -515,8 +483,6 @@ int CALLBACK wWinMain(_In_ HINSTANCE     hInstance,
         g_CommandAllocators[i] = CreateCommandAllocator(g_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
     g_CommandList =
         CreateCommandList(g_Device, g_CommandAllocators[g_CurrentBackBufferIndex], D3D12_COMMAND_LIST_TYPE_DIRECT);
-    g_Fence      = CreateFence(g_Device);
-    g_FenceEvent = CreateEventHandle();
 
     g_IsInitialized = true;
     ShowWindow(g_hWnd, nShowCmd);
@@ -528,7 +494,6 @@ int CALLBACK wWinMain(_In_ HINSTANCE     hInstance,
         DispatchMessageW(&msg);
     }
 
-    Flush(g_CommandQueue, g_Fence, g_FenceValue, g_FenceEvent);
-    CloseHandle(g_FenceEvent);
+    g_CommandQueue->Flush(g_FenceValue);
     return msg.wParam;
 }
