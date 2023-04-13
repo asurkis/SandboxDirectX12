@@ -38,7 +38,6 @@ UINT                 g_RTVDescriptorSize;
 UINT                 g_CurrentBackBufferIndex;
 
 // Synchronization objects
-uint64_t g_FenceValue                    = 0;
 uint64_t g_FrameFenceValues[g_NumFrames] = {};
 
 // By default, enable V-Sync.
@@ -245,14 +244,12 @@ void Render()
         CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
             backBuffer.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         g_CommandList->ResourceBarrier(1, &barrier);
-        Assert(g_CommandList->Close());
-        ID3D12CommandList *const commandLists[] = {g_CommandList.Get()};
-        g_CommandQueue->ExecuteCommandLists(1, commandLists);
+        g_CommandQueue->ExecuteCommandList(g_CommandList.Get());
 
         UINT syncInterval = g_VSync ? 1 : 0;
         UINT presentFlags = g_TearingSupported && !g_VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
         Assert(g_SwapChain->Present(syncInterval, presentFlags));
-        g_FrameFenceValues[g_CurrentBackBufferIndex] = g_CommandQueue->Signal(g_FenceValue);
+        g_FrameFenceValues[g_CurrentBackBufferIndex] = g_CommandQueue->Signal();
 
         g_CurrentBackBufferIndex = g_SwapChain->GetCurrentBackBufferIndex();
         g_CommandQueue->WaitForFenceValue(g_FrameFenceValues[g_CurrentBackBufferIndex]);
@@ -265,7 +262,7 @@ void Resize(UINT32 width, UINT32 height)
         return;
     g_ClientWidth  = (std::max)(1u, width);
     g_ClientHeight = (std::max)(1u, height);
-    g_CommandQueue->Flush(g_FenceValue);
+    g_CommandQueue->Flush();
     for (int i = 0; i < g_NumFrames; ++i)
     {
         g_BackBuffers[i].Reset();
@@ -420,6 +417,6 @@ int CALLBACK wWinMain(_In_ HINSTANCE     hInstance,
         DispatchMessageW(&msg);
     }
 
-    g_CommandQueue->Flush(g_FenceValue);
+    g_CommandQueue->Flush();
     return msg.wParam;
 }
