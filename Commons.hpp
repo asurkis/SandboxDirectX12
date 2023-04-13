@@ -6,6 +6,7 @@
 #include <d3dcompiler.h>
 #include <d3dx12.h>
 #include <dxgi1_6.h>
+#include <stdexcept>
 #include <wrl.h>
 
 using Microsoft::WRL::ComPtr;

@@ -70,6 +70,38 @@ class CommandQueue
         return m_CommandQueue;
     }
 
+    PSwapChain CreateSwapChain(HWND hWnd, bool tearingSupport, UINT width, UINT height, UINT bufferCount)
+    {
+        UINT createFactoryFlags = 0;
+#ifdef _DEBUG
+        createFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+#endif
+        ComPtr<IDXGIFactory4> factory;
+        Assert(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&factory)));
+
+        DXGI_SWAP_CHAIN_DESC1 desc = {};
+        desc.Width                 = width;
+        desc.Height                = height;
+        desc.Format                = DXGI_FORMAT_R8G8B8A8_UNORM;
+        desc.Stereo                = FALSE;
+        // desc.SampleDesc.Count = 1;
+        // desc.SampleDesc.Quality = 0;
+        desc.SampleDesc  = {1, 0};
+        desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+        desc.BufferCount = bufferCount;
+        desc.Scaling     = DXGI_SCALING_STRETCH;
+        desc.SwapEffect  = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+        desc.AlphaMode   = DXGI_ALPHA_MODE_UNSPECIFIED;
+        desc.Flags       = tearingSupport ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+
+        ComPtr<IDXGISwapChain1> chain1;
+        Assert(factory->CreateSwapChainForHwnd(m_CommandQueue.Get(), hWnd, &desc, nullptr, nullptr, &chain1));
+        Assert(factory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
+        PSwapChain chain4;
+        Assert(chain1.As(&chain4));
+        return chain4;
+    }
+
     PGraphicsCommandList GetCommandList()
     {
         PCommandAllocator allocator;

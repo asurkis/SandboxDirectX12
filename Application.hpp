@@ -180,19 +180,6 @@ class Application
         return adapter4;
     }
 
-    PCommandQueue CreateCommandQueue(PDevice device, D3D12_COMMAND_LIST_TYPE type)
-    {
-        D3D12_COMMAND_QUEUE_DESC desc = {};
-        desc.Type                     = type;
-        desc.Priority                 = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
-        desc.Flags                    = D3D12_COMMAND_QUEUE_FLAG_NONE;
-        desc.NodeMask                 = 0;
-
-        PCommandQueue queue;
-        Assert(device->CreateCommandQueue(&desc, IID_PPV_ARGS(&queue)));
-        return queue;
-    }
-
     bool CheckTearingSupport()
     {
         ComPtr<IDXGIFactory5> factory5;
@@ -203,49 +190,6 @@ class Application
                 factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing))))
             return false;
         return allowTearing;
-    }
-
-    PSwapChain CreateSwapChain(HWND hWnd, PCommandQueue commandQueue, UINT width, UINT height, UINT bufferCount)
-    {
-        UINT createFactoryFlags = 0;
-#ifdef _DEBUG
-        createFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-#endif
-        ComPtr<IDXGIFactory4> factory;
-        Assert(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&factory)));
-
-        DXGI_SWAP_CHAIN_DESC1 desc = {};
-        desc.Width                 = width;
-        desc.Height                = height;
-        desc.Format                = DXGI_FORMAT_R8G8B8A8_UNORM;
-        desc.Stereo                = FALSE;
-        // desc.SampleDesc.Count = 1;
-        // desc.SampleDesc.Quality = 0;
-        desc.SampleDesc  = {1, 0};
-        desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        desc.BufferCount = bufferCount;
-        desc.Scaling     = DXGI_SCALING_STRETCH;
-        desc.SwapEffect  = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-        desc.AlphaMode   = DXGI_ALPHA_MODE_UNSPECIFIED;
-        desc.Flags       = CheckTearingSupport() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
-
-        ComPtr<IDXGISwapChain1> chain1;
-        Assert(factory->CreateSwapChainForHwnd(commandQueue.Get(), hWnd, &desc, nullptr, nullptr, &chain1));
-        Assert(factory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
-        PSwapChain chain4;
-        Assert(chain1.As(&chain4));
-        return chain4;
-    }
-
-    PDescriptorHeap CreateDescriptorHeap(PDevice device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT numDescriptors)
-    {
-        D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-        desc.NumDescriptors             = numDescriptors;
-        desc.Type                       = type;
-
-        PDescriptorHeap heap;
-        Assert(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heap)));
-        return heap;
     }
 
     void UpdateRenderTargetViews(PDevice device, PSwapChain swapChain, PDescriptorHeap heap)
@@ -398,10 +342,10 @@ class Application
 
         m_Device       = std::make_unique<Device>(adapter4);
         m_CommandQueue = std::make_unique<CommandQueue>(m_Device->Get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
-        m_SwapChain =
-            CreateSwapChain(m_Window.HWnd(), m_CommandQueue->Get(), m_ClientWidth, m_ClientHeight, NUM_FRAMES);
+        m_SwapChain = m_CommandQueue->CreateSwapChain(
+            m_Window.HWnd(), m_TearingSupported, m_ClientWidth, m_ClientHeight, NUM_FRAMES);
         m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
-        m_RTVDescriptorHeap      = CreateDescriptorHeap(m_Device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, NUM_FRAMES);
+        m_RTVDescriptorHeap      = m_Device->CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, NUM_FRAMES);
         m_RTVDescriptorSize      = m_Device->Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
         UpdateRenderTargetViews(m_Device->Get(), m_SwapChain, m_RTVDescriptorHeap);

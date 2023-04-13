@@ -4,7 +4,6 @@
 #include <Windows.h>
 #include <ios>
 #include <sstream>
-#include <stdexcept>
 
 #define Assert(hr)                                                                                                     \
     do                                                                                                                 \

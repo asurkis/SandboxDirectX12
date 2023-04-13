@@ -69,6 +69,17 @@ class Device
         return m_Device;
     }
 
+    PDescriptorHeap CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, UINT numDescriptors)
+    {
+        D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+        desc.NumDescriptors             = numDescriptors;
+        desc.Type                       = type;
+
+        PDescriptorHeap heap;
+        Assert(m_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heap)));
+        return heap;
+    }
+
     PCommandAllocator CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE type)
     {
         PCommandAllocator allocator;

@@ -5,6 +5,7 @@ add_subdirectory(DirectX-Headers)
 add_executable(${PROJECT_NAME} WIN32
     main.cpp
     Commons.hpp
+    Application.hpp
     Utils.hpp
     MainWindow.hpp
     Device.hpp
