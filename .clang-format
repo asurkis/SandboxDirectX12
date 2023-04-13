@@ -1,6 +1,18 @@
 BasedOnStyle: Microsoft
 BinPackArguments: false
 BinPackParameters: false
+PackConstructorInitializers: Never
+
+AlignArrayOfStructures: Left
 AlignConsecutiveDeclarations: true
 AlignConsecutiveAssignments: true
-PackConstructorInitializers: Never
+AlignConsecutiveBitFields: true
+
+BreakBeforeBinaryOperators: true
+AlignOperands: AlignAfterOperator
+
+AllowShortBlocksOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: true
+AllowShortLoopsOnASingleLine: true

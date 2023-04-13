@@ -64,10 +64,7 @@ class Device
 #endif
     }
 
-    PDevice Get() const noexcept
-    {
-        return m_Device;
-    }
+    PDevice Get() const noexcept { return m_Device; }
 
     PDescriptorHeap CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, UINT numDescriptors)
     {
