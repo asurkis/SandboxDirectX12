@@ -1,5 +1,6 @@
 #define _DEBUG
 // #define WIN32_LEAN_AND_MEAN
+#include "Commons.hpp"
 #include "MainWindow.hpp"
 #include "Utils.hpp"
 
@@ -7,31 +8,13 @@
 #include <chrono>
 #include <sstream>
 
-#include <Windows.h>
-
-#include <DirectXMath.h>
-#include <d3d12.h>
 #include <d3dcompiler.h>
-#include <d3dx12.h>
-#include <dxgi1_6.h>
-#include <wrl.h>
-
-using Microsoft::WRL::ComPtr;
-
-using PDevice = ComPtr<ID3D12Device2>;
-using PCommandQueue = ComPtr<ID3D12CommandQueue>;
-using PSwapChain = ComPtr<IDXGISwapChain4>;
-using PGraphicsCommandList = ComPtr<ID3D12GraphicsCommandList>;
-using PCommandAllocator = ComPtr<ID3D12CommandAllocator>;
-using PDescriptorHeap = ComPtr<ID3D12DescriptorHeap>;
-using PFence = ComPtr<ID3D12Fence>;
-using PResource = ComPtr<ID3D12Resource>;
 
 const UINT g_NumFrames = 3;
-PResource g_BackBuffers[g_NumFrames];
+PResource  g_BackBuffers[g_NumFrames];
 
-bool g_UseWarp = false;
-uint32_t g_ClientWidth = 1280;
+bool     g_UseWarp      = false;
+uint32_t g_ClientWidth  = 1280;
 uint32_t g_ClientHeight = 720;
 
 bool g_IsInitialized = false;
@@ -42,24 +25,24 @@ HWND g_hWnd;
 RECT g_WindowRect;
 
 // DirectX 12 Objects
-PDevice g_Device;
-PCommandQueue g_CommandQueue;
-PSwapChain g_SwapChain;
+PDevice              g_Device;
+PCommandQueue        g_CommandQueue;
+PSwapChain           g_SwapChain;
 PGraphicsCommandList g_CommandList;
-PCommandAllocator g_CommandAllocators[g_NumFrames];
-PDescriptorHeap g_RTVDescriptorHeap;
-UINT g_RTVDescriptorSize;
-UINT g_CurrentBackBufferIndex;
+PCommandAllocator    g_CommandAllocators[g_NumFrames];
+PDescriptorHeap      g_RTVDescriptorHeap;
+UINT                 g_RTVDescriptorSize;
+UINT                 g_CurrentBackBufferIndex;
 
 // Synchronization objects
-PFence g_Fence;
-uint64_t g_FenceValue = 0;
+PFence   g_Fence;
+uint64_t g_FenceValue                    = 0;
 uint64_t g_FrameFenceValues[g_NumFrames] = {};
-HANDLE g_FenceEvent;
+HANDLE   g_FenceEvent;
 
 // By default, enable V-Sync.
 // Can be toggled with the V key.
-bool g_VSync = true;
+bool g_VSync            = true;
 bool g_TearingSupported = false;
 // By default, use windowed mode.
 // Can be toggled with the Alt+Enter or F11
@@ -67,7 +50,7 @@ bool g_Fullscreen = false;
 
 void ParseCommandLineArguments()
 {
-    int argc;
+    int       argc;
     wchar_t **argv = ::CommandLineToArgvW(::GetCommandLineW(), &argc);
 
     for (size_t i = 0; i < argc; ++i)
@@ -185,8 +168,8 @@ PDevice CreateDevice(ComPtr<IDXGIAdapter4> adapter)
         // NewFilter.DenyList.pCategoryList = Categories;
         NewFilter.DenyList.NumSeverities = _countof(Severities);
         NewFilter.DenyList.pSeverityList = Severities;
-        NewFilter.DenyList.NumIDs = _countof(DenyIds);
-        NewFilter.DenyList.pIDList = DenyIds;
+        NewFilter.DenyList.NumIDs        = _countof(DenyIds);
+        NewFilter.DenyList.pIDList       = DenyIds;
 
         Assert(pInfoQueue->PushStorageFilter(&NewFilter));
     }
@@ -197,10 +180,10 @@ PDevice CreateDevice(ComPtr<IDXGIAdapter4> adapter)
 PCommandQueue CreateCommandQueue(PDevice device, D3D12_COMMAND_LIST_TYPE type)
 {
     D3D12_COMMAND_QUEUE_DESC desc = {};
-    desc.Type = type;
-    desc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
-    desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-    desc.NodeMask = 0;
+    desc.Type                     = type;
+    desc.Priority                 = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
+    desc.Flags                    = D3D12_COMMAND_QUEUE_FLAG_NONE;
+    desc.NodeMask                 = 0;
 
     PCommandQueue queue;
     Assert(device->CreateCommandQueue(&desc, IID_PPV_ARGS(&queue)));
@@ -228,19 +211,19 @@ PSwapChain CreateSwapChain(HWND hWnd, PCommandQueue commandQueue, UINT width, UI
     Assert(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&factory)));
 
     DXGI_SWAP_CHAIN_DESC1 desc = {};
-    desc.Width = width;
-    desc.Height = height;
-    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    desc.Stereo = FALSE;
+    desc.Width                 = width;
+    desc.Height                = height;
+    desc.Format                = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.Stereo                = FALSE;
     // desc.SampleDesc.Count = 1;
     // desc.SampleDesc.Quality = 0;
-    desc.SampleDesc = {1, 0};
+    desc.SampleDesc  = {1, 0};
     desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     desc.BufferCount = bufferCount;
-    desc.Scaling = DXGI_SCALING_STRETCH;
-    desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-    desc.Flags = CheckTearingSupport() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+    desc.Scaling     = DXGI_SCALING_STRETCH;
+    desc.SwapEffect  = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    desc.AlphaMode   = DXGI_ALPHA_MODE_UNSPECIFIED;
+    desc.Flags       = CheckTearingSupport() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 
     ComPtr<IDXGISwapChain1> chain1;
     Assert(factory->CreateSwapChainForHwnd(commandQueue.Get(), hWnd, &desc, nullptr, nullptr, &chain1));
@@ -253,8 +236,8 @@ PSwapChain CreateSwapChain(HWND hWnd, PCommandQueue commandQueue, UINT width, UI
 PDescriptorHeap CreateDescriptorHeap(PDevice device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT numDescriptors)
 {
     D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-    desc.NumDescriptors = numDescriptors;
-    desc.Type = type;
+    desc.NumDescriptors             = numDescriptors;
+    desc.Type                       = type;
 
     PDescriptorHeap heap;
     Assert(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heap)));
@@ -329,12 +312,12 @@ void Flush(PCommandQueue commandQueue, PFence fence, UINT64 &fenceValue, HANDLE 
 
 void Update()
 {
-    static uint64_t frameCounter = 0;
+    static uint64_t                           frameCounter = 0;
     static std::chrono::high_resolution_clock clock;
-    static auto t0 = clock.now();
+    static auto                               t0 = clock.now();
 
     ++frameCounter;
-    auto t1 = clock.now();
+    auto                          t1 = clock.now();
     std::chrono::duration<double> dt = t1 - t0;
     // t0 = t1;
 
@@ -345,14 +328,14 @@ void Update()
         ss << L"FPS: " << frameCounter / elapsedSeconds << '\n';
         OutputDebugStringW(ss.str().c_str());
         frameCounter = 0;
-        t0 = t1;
+        t0           = t1;
     }
 }
 
 void Render()
 {
     auto &&commandAllocator = g_CommandAllocators[g_CurrentBackBufferIndex];
-    auto &&backBuffer = g_BackBuffers[g_CurrentBackBufferIndex];
+    auto &&backBuffer       = g_BackBuffers[g_CurrentBackBufferIndex];
     commandAllocator->Reset();
     {
         g_CommandList->Reset(commandAllocator.Get(), nullptr);
@@ -360,7 +343,7 @@ void Render()
             backBuffer.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         g_CommandList->ResourceBarrier(1, &barrier);
 
-        FLOAT clearColor[] = {0.4f, 0.6f, 0.9f, 1.0f};
+        FLOAT                         clearColor[] = {0.4f, 0.6f, 0.9f, 1.0f};
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(
             g_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), g_CurrentBackBufferIndex, g_RTVDescriptorSize);
         g_CommandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
@@ -387,7 +370,7 @@ void Resize(UINT32 width, UINT32 height)
 {
     if (g_ClientWidth == width && g_ClientHeight == height)
         return;
-    g_ClientWidth = (std::max)(1u, width);
+    g_ClientWidth  = (std::max)(1u, width);
     g_ClientHeight = (std::max)(1u, height);
     Flush(g_CommandQueue, g_Fence, g_FenceValue, g_FenceEvent);
     for (int i = 0; i < g_NumFrames; ++i)
@@ -414,9 +397,9 @@ void SetFullscreen(bool fullscreen)
         UINT windowStyle = WS_OVERLAPPED;
         SetWindowLongW(g_hWnd, GWL_STYLE, windowStyle);
 
-        HMONITOR hMonitor = MonitorFromWindow(g_hWnd, MONITOR_DEFAULTTONEAREST);
+        HMONITOR      hMonitor    = MonitorFromWindow(g_hWnd, MONITOR_DEFAULTTONEAREST);
         MONITORINFOEX monitorInfo = {};
-        monitorInfo.cbSize = sizeof(MONITORINFOEX);
+        monitorInfo.cbSize        = sizeof(MONITORINFOEX);
         GetMonitorInfoW(hMonitor, &monitorInfo);
 
         SetWindowPos(g_hWnd,
@@ -490,7 +473,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_SIZE: {
         RECT cr = {};
         GetClientRect(g_hWnd, &cr);
-        LONG width = cr.right - cr.left;
+        LONG width  = cr.right - cr.left;
         LONG height = cr.bottom - cr.top;
         Resize(width, height);
     }
@@ -502,10 +485,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-int CALLBACK wWinMain(_In_ HINSTANCE hInstance,
+int CALLBACK wWinMain(_In_ HINSTANCE     hInstance,
                       _In_opt_ HINSTANCE hPrevInstance,
-                      _In_ LPWSTR lpCmdLine,
-                      _In_ int nShowCmd)
+                      _In_ LPWSTR        lpCmdLine,
+                      _In_ int           nShowCmd)
 {
     SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     ParseCommandLineArguments();
@@ -514,17 +497,17 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance,
     g_TearingSupported = CheckTearingSupport();
 
     WindowClass cls(hInstance, L"DX12WindowClass", &WndProc);
-    Window mainWindow(cls, L"", g_ClientWidth, g_ClientHeight);
+    Window      mainWindow(cls, L"", g_ClientWidth, g_ClientHeight);
     g_hWnd = mainWindow.HWnd();
     GetWindowRect(g_hWnd, &g_WindowRect);
 
     ComPtr<IDXGIAdapter4> adapter4 = GetAdapter(g_UseWarp);
-    g_Device = CreateDevice(adapter4);
-    g_CommandQueue = CreateCommandQueue(g_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
-    g_SwapChain = CreateSwapChain(g_hWnd, g_CommandQueue, g_ClientWidth, g_ClientHeight, g_NumFrames);
+    g_Device                       = CreateDevice(adapter4);
+    g_CommandQueue                 = CreateCommandQueue(g_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+    g_SwapChain              = CreateSwapChain(g_hWnd, g_CommandQueue, g_ClientWidth, g_ClientHeight, g_NumFrames);
     g_CurrentBackBufferIndex = g_SwapChain->GetCurrentBackBufferIndex();
-    g_RTVDescriptorHeap = CreateDescriptorHeap(g_Device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, g_NumFrames);
-    g_RTVDescriptorSize = g_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    g_RTVDescriptorHeap      = CreateDescriptorHeap(g_Device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, g_NumFrames);
+    g_RTVDescriptorSize      = g_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
     UpdateRenderTargetViews(g_Device, g_SwapChain, g_RTVDescriptorHeap);
 
@@ -532,7 +515,7 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance,
         g_CommandAllocators[i] = CreateCommandAllocator(g_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
     g_CommandList =
         CreateCommandList(g_Device, g_CommandAllocators[g_CurrentBackBufferIndex], D3D12_COMMAND_LIST_TYPE_DIRECT);
-    g_Fence = CreateFence(g_Device);
+    g_Fence      = CreateFence(g_Device);
     g_FenceEvent = CreateEventHandle();
 
     g_IsInitialized = true;
