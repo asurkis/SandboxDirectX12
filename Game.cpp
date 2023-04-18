@@ -23,19 +23,17 @@ static VertexPosColor g_Vertices[] = {
 };
 
 static WORD g_Indices[] = {
-    0,
-    1,
-    2,
-    2,
-    1,
-    3,
+    0, 1, 2, 2, 1, 3,
 
-    4,
-    6,
-    5,
-    5,
-    6,
-    7,
+    4, 6, 5, 5, 6, 7,
+
+    0, 2, 4, 4, 2, 6,
+
+    1, 3, 5, 5, 3, 7,
+
+    0, 1, 4, 4, 1, 5,
+
+    2, 3, 6, 6, 3, 7,
 };
 
 Game::Game(Application *application, int width, int height, bool vSync)
