@@ -1,8 +1,9 @@
 #include "Game.hpp"
 #include "Application.hpp"
 
-using DirectX::XMFLOAT3;
-using DirectX::XMMATRIX;
+#include <iostream>
+
+using namespace DirectX;
 
 struct VertexPosColor
 {
@@ -41,7 +42,9 @@ Game::Game(Application *application, int width, int height, bool vSync)
     : m_Application(application),
       m_ScissorRect{0, 0, LONG_MAX, LONG_MAX},
       m_Viewport{0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)},
-      m_FoV(45.0f)
+      m_FoV(45.0f),
+      m_Width(width),
+      m_Height(height)
 {
     PDevice              device       = m_Application->GetDevice();
     CommandQueue        &commandQueue = m_Application->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
@@ -77,16 +80,9 @@ Game::Game(Application *application, int width, int height, bool vSync)
     heapDesc.Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     Assert(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_DSVHeap)));
 
-    ComPtr<ID3DBlob> vertexShaderBlob;
-    try
-    {
-        Assert(D3DReadFileToBlob(L"Vertex.cso", &vertexShaderBlob));
-    }
-    catch (std::runtime_error const &e)
-    {
-        throw;
-    }
-    ComPtr<ID3DBlob> pixelShaderBlob;
+    PBlob vertexShaderBlob;
+    PBlob pixelShaderBlob;
+    Assert(D3DReadFileToBlob(L"Vertex.cso", &vertexShaderBlob));
     Assert(D3DReadFileToBlob(L"Pixel.cso", &pixelShaderBlob));
 
     D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
@@ -116,8 +112,8 @@ Game::Game(Application *application, int width, int height, bool vSync)
     CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc = {};
     sigDesc.Init_1_1(1, rootParameters, 0, nullptr, flags);
 
-    ComPtr<ID3DBlob> rootSigBlob;
-    ComPtr<ID3DBlob> errorBlob;
+    PBlob rootSigBlob;
+    PBlob errorBlob;
     Assert(D3DX12SerializeVersionedRootSignature(&sigDesc, featureData.HighestVersion, &rootSigBlob, &errorBlob));
     Assert(device->CreateRootSignature(
         0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature)));
@@ -153,6 +149,7 @@ Game::Game(Application *application, int width, int height, bool vSync)
     UINT64 fenceValue = commandQueue.ExecuteCommandList(commandList);
     commandQueue.WaitForFenceValue(fenceValue);
     m_ContentLoaded = true;
+    ResizeDepthBuffer(width, height);
 }
 
 void Game::UpdateBufferResource(PGraphicsCommandList commandList,
@@ -184,4 +181,115 @@ void Game::UpdateBufferResource(PGraphicsCommandList commandList,
     data.RowPitch               = bufferSize;
     data.SlicePitch             = bufferSize;
     UpdateSubresources(commandList.Get(), *destinationResource, *intermediateResource, 0, 0, 1, &data);
+}
+
+void Game::ResizeDepthBuffer(int width, int height)
+{
+    if (!m_ContentLoaded) return;
+    m_Application->Flush();
+    width          = (std::max)(1, width);
+    height         = (std::max)(1, height);
+    PDevice device = m_Application->GetDevice();
+
+    D3D12_CLEAR_VALUE clearValue = {};
+    clearValue.Format            = DXGI_FORMAT_D32_FLOAT;
+    clearValue.DepthStencil      = {1.0f, 0};
+
+    Assert(device->CreateCommittedResource(
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+        D3D12_HEAP_FLAG_NONE,
+        &CD3DX12_RESOURCE_DESC::Tex2D(
+            DXGI_FORMAT_D32_FLOAT, width, height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+        D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        &clearValue,
+        IID_PPV_ARGS(&m_DepthBuffer)));
+
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsv = {};
+    dsv.Format                        = DXGI_FORMAT_D32_FLOAT;
+    dsv.ViewDimension                 = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsv.Texture2D.MipSlice            = 0;
+    dsv.Flags                         = D3D12_DSV_FLAG_NONE;
+
+    device->CreateDepthStencilView(m_DepthBuffer.Get(), &dsv, m_DSVHeap->GetCPUDescriptorHandleForHeapStart());
+}
+
+void Game::OnResize(int width, int height)
+{
+    if (width == m_Width && height == m_Height) return;
+    m_Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
+    ResizeDepthBuffer(width, height);
+    m_Width  = width;
+    m_Height = height;
+}
+
+void Game::OnUpdate()
+{
+    static uint64_t                           frameCounter = 0;
+    static std::chrono::high_resolution_clock clock;
+    static auto                               t0 = clock.now();
+
+    ++frameCounter;
+    auto                          t1 = clock.now();
+    std::chrono::duration<double> dt = t1 - t0;
+    // t0 = t1;
+
+    double elapsedSeconds = dt.count();
+    if (elapsedSeconds > 1.0)
+    {
+        std::wstringstream ss;
+        ss << L"FPS: " << frameCounter / elapsedSeconds << '\n';
+        OutputDebugStringW(ss.str().c_str());
+        frameCounter = 0;
+        t0           = t1;
+    }
+
+    std::chrono::duration<double> timeTotal    = t1.time_since_epoch();
+    float                         angle        = static_cast<float>(timeTotal.count());
+    XMVECTOR                      rotationAxis = XMVectorSet(0, 1, 1, 0);
+    m_ModelMatrix                              = XMMatrixRotationAxis(rotationAxis, angle);
+    XMVECTOR eyePosition                       = XMVectorSet(0, 0, -10, 1);
+    XMVECTOR focusPoint                        = XMVectorSet(0, 0, 0, 1);
+    XMVECTOR upDir                             = XMVectorSet(0, 0, 1, 0);
+    m_ViewMatrix                               = XMMatrixLookAtRH(eyePosition, focusPoint, upDir);
+
+    float aspectRatio  = m_Width / static_cast<float>(m_Height);
+    m_ProjectionMatrix = XMMatrixPerspectiveFovRH(m_FoV, aspectRatio, 0.1f, 100.0f);
+}
+
+void Game::OnRender()
+{
+    CommandQueue        &commandQueue           = m_Application->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+    PGraphicsCommandList commandList            = commandQueue.GetCommandList();
+    UINT                 currentBackBufferIndex = m_Application->CurrentBackBufferIndex();
+    PResource            backBuffer             = m_Application->CurrentBackBuffer();
+    auto                 rtv                    = m_Application->CurrentRTV();
+    auto                 dsv                    = m_DSVHeap->GetCPUDescriptorHandleForHeapStart();
+
+    TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    FLOAT clearColor[] = {0.4f, 0.6f, 0.9f, 1.0f};
+    ClearRTV(commandList, rtv, clearColor);
+    ClearDepth(commandList, dsv, 1.0f);
+
+    commandList->SetPipelineState(m_PipelineState.Get());
+    commandList->SetGraphicsRootSignature(m_RootSignature.Get());
+    commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
+    commandList->IASetIndexBuffer(&m_IndexBufferView);
+
+    commandList->RSSetViewports(1, &m_Viewport);
+    commandList->RSSetScissorRects(1, &m_ScissorRect);
+    commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+
+    XMMATRIX mvpMatrix = XMMatrixMultiply(m_ModelMatrix, m_ViewMatrix);
+    mvpMatrix          = XMMatrixMultiply(mvpMatrix, m_ProjectionMatrix);
+    for (int i = 0; i < 16; i++) std::cerr << mvpMatrix.r[i / 4].m128_f32[i % 4] << ' ';
+    std::cerr << '\n';
+    commandList->SetGraphicsRoot32BitConstants(0, sizeof(mvpMatrix) / 4, &mvpMatrix, 0);
+    commandList->DrawIndexedInstanced(_countof(g_Indices), 1, 0, 0, 0);
+
+    TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+
+    m_FenceValues[currentBackBufferIndex] = commandQueue.ExecuteCommandList(commandList);
+    m_Application->Present();
+    commandQueue.WaitForFenceValue(m_FenceValues[currentBackBufferIndex]);
 }

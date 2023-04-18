@@ -23,3 +23,4 @@ using PPipelineState       = ComPtr<ID3D12PipelineState>;
 using PResource            = ComPtr<ID3D12Resource>;
 using PRootSignature       = ComPtr<ID3D12RootSignature>;
 using PSwapChain           = ComPtr<IDXGISwapChain4>;
+using PBlob                = ComPtr<ID3DBlob>;

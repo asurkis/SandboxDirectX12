@@ -15,11 +15,14 @@ class Game;
 
 class Application
 {
+  public:
+    static const UINT BufferCount = 3;
+
+  private:
     WindowClass m_WindowClass;
     Window      m_Window;
 
-    static const UINT BufferCount = 3;
-    PResource         g_BackBuffers[BufferCount];
+    PResource m_BackBuffers[BufferCount];
 
     bool     m_UseWarp      = false;
     uint32_t m_ClientWidth  = 1280;
@@ -52,6 +55,8 @@ class Application
     std::optional<CommandQueue> m_CommandQueueCompute;
     std::optional<CommandQueue> m_CommandQueueCopy;
 
+    std::optional<Game> m_Game;
+
     inline static Application *instance = nullptr;
 
     static LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -63,8 +68,8 @@ class Application
         case WM_DESTROY: PostQuitMessage(0); break;
 
         case WM_PAINT:
-            instance->Update();
-            instance->Render();
+            instance->m_Game->OnUpdate();
+            instance->m_Game->OnRender();
             break;
 
         case WM_SYSKEYDOWN:
@@ -188,63 +193,8 @@ class Application
             PResource backBuffer;
             Assert(swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
             device->CreateRenderTargetView(backBuffer.Get(), nullptr, rtvHandle);
-            g_BackBuffers[i] = backBuffer;
+            m_BackBuffers[i] = backBuffer;
             rtvHandle.Offset(rtvDescriptorSize);
-        }
-    }
-
-    void Update()
-    {
-        static uint64_t                           frameCounter = 0;
-        static std::chrono::high_resolution_clock clock;
-        static auto                               t0 = clock.now();
-
-        ++frameCounter;
-        auto                          t1 = clock.now();
-        std::chrono::duration<double> dt = t1 - t0;
-        // t0 = t1;
-
-        double elapsedSeconds = dt.count();
-        if (elapsedSeconds > 1.0)
-        {
-            std::wstringstream ss;
-            ss << L"FPS: " << frameCounter / elapsedSeconds << '\n';
-            OutputDebugStringW(ss.str().c_str());
-            frameCounter = 0;
-            t0           = t1;
-        }
-    }
-
-    void Render()
-    {
-        auto &&commandAllocator = m_CommandAllocators[m_CurrentBackBufferIndex];
-        auto &&backBuffer       = g_BackBuffers[m_CurrentBackBufferIndex];
-        commandAllocator->Reset();
-        {
-            m_CommandList->Reset(commandAllocator.Get(), nullptr);
-            CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-                backBuffer.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-            m_CommandList->ResourceBarrier(1, &barrier);
-
-            FLOAT                         clearColor[] = {0.4f, 0.6f, 0.9f, 1.0f};
-            CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
-                                              m_CurrentBackBufferIndex,
-                                              m_RTVDescriptorSize);
-            m_CommandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
-        }
-        {
-            CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-                backBuffer.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-            m_CommandList->ResourceBarrier(1, &barrier);
-            m_CommandQueueDirect->ExecuteCommandList(m_CommandList.Get());
-
-            UINT syncInterval = m_VSync ? 1 : 0;
-            UINT presentFlags = m_TearingSupported && !m_VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
-            Assert(m_SwapChain->Present(syncInterval, presentFlags));
-            m_FrameFenceValues[m_CurrentBackBufferIndex] = m_CommandQueueDirect->Signal();
-
-            m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
-            m_CommandQueueDirect->WaitForFenceValue(m_FrameFenceValues[m_CurrentBackBufferIndex]);
         }
     }
 
@@ -256,7 +206,7 @@ class Application
         m_CommandQueueDirect->Flush();
         for (UINT i = 0; i < BufferCount; ++i)
         {
-            g_BackBuffers[i].Reset();
+            m_BackBuffers[i].Reset();
             m_FrameFenceValues[i] = m_FrameFenceValues[m_CurrentBackBufferIndex];
         }
 
@@ -266,6 +216,8 @@ class Application
             m_SwapChain->ResizeBuffers(BufferCount, m_ClientWidth, m_ClientHeight, desc.BufferDesc.Format, desc.Flags));
         m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
         UpdateRenderTargetViews(m_Device->Get(), m_SwapChain, m_RTVDescriptorHeap);
+
+        m_Game->OnResize(width, height);
     }
 
     void ToggleFullscreen() { SetFullscreen(!m_Fullscreen); }
@@ -340,7 +292,9 @@ class Application
                                                     D3D12_COMMAND_LIST_TYPE_DIRECT);
     }
 
-    ~Application()
+    ~Application() { Flush(); }
+
+    void Flush()
     {
         m_CommandQueueDirect->Flush();
         m_CommandQueueCompute->Flush();
@@ -350,7 +304,7 @@ class Application
     int Run(int nShowCmd)
     {
         instance = this;
-        Game game(this, m_ClientWidth, m_ClientHeight, m_VSync);
+        m_Game.emplace(this, m_ClientWidth, m_ClientHeight, m_VSync);
         ShowWindow(m_Window.HWnd(), nShowCmd);
 
         MSG msg;
@@ -360,8 +314,9 @@ class Application
             DispatchMessageW(&msg);
         }
 
+        m_Game.reset();
         instance = nullptr;
-        return msg.wParam;
+        return static_cast<int>(msg.wParam);
     }
 
     PDevice GetDevice() { return m_Device->Get(); }
@@ -375,5 +330,25 @@ class Application
         case D3D12_COMMAND_LIST_TYPE_COPY: return *m_CommandQueueCopy;
         default: throw std::runtime_error("No such queue");
         }
+    }
+
+    constexpr UINT CurrentBackBufferIndex() const { return m_CurrentBackBufferIndex; }
+    PResource      CurrentBackBuffer() const { return m_BackBuffers[m_CurrentBackBufferIndex]; }
+    PSwapChain     SwapChain() const { return m_SwapChain; }
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE CurrentRTV() const
+    {
+        return CD3DX12_CPU_DESCRIPTOR_HANDLE(
+            m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_CurrentBackBufferIndex, m_RTVDescriptorSize);
+    }
+
+    UINT Present()
+    {
+        UINT syncInterval = m_VSync ? 1 : 0;
+        UINT presentFlags = m_TearingSupported && !m_VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
+        Assert(m_SwapChain->Present(syncInterval, presentFlags));
+        m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
+
+        return m_CurrentBackBufferIndex;
     }
 };

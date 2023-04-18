@@ -88,7 +88,7 @@ class Device
     {
         PGraphicsCommandList list;
         Assert(m_Device->CreateCommandList(0, type, allocator.Get(), nullptr, IID_PPV_ARGS(&list)));
-        Assert(list->Close());
+        // Assert(list->Close());
         return list;
     }
 };
