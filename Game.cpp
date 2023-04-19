@@ -29,9 +29,9 @@ static WORD g_Indices[] = {
 
     0, 2, 4, 4, 2, 6,
 
-    1, 3, 5, 5, 3, 7,
+    1, 5, 3, 3, 5, 7,
 
-    0, 1, 4, 4, 1, 5,
+    5, 1, 4, 4, 1, 0,
 
     2, 3, 6, 6, 3, 7,
 };
@@ -235,7 +235,7 @@ void Game::OnUpdate()
     if (elapsedSeconds > 1.0)
     {
         std::wstringstream ss;
-        ss << L"FPS: " << frameCounter / elapsedSeconds << '\n';
+        ss << L"TPS: " << frameCounter / elapsedSeconds << '\n';
         OutputDebugStringW(ss.str().c_str());
         frameCounter = 0;
         t0           = t1;
@@ -244,14 +244,14 @@ void Game::OnUpdate()
     std::chrono::duration<double> timeTotal    = t1.time_since_epoch();
     float                         angle        = static_cast<float>(timeTotal.count());
     XMVECTOR                      rotationAxis = XMVectorSet(0, 1, 1, 0);
-    m_ModelMatrix                              = XMMatrixRotationAxis(rotationAxis, angle);
-    XMVECTOR eyePosition                       = XMVectorSet(0, 0, -10, 1);
+    m_ModelMatrix                              = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
+    XMVECTOR eyePosition                       = XMVectorSet(0, -10, 0, 1);
     XMVECTOR focusPoint                        = XMVectorSet(0, 0, 0, 1);
     XMVECTOR upDir                             = XMVectorSet(0, 0, 1, 0);
-    m_ViewMatrix                               = XMMatrixLookAtRH(eyePosition, focusPoint, upDir);
+    m_ViewMatrix                               = DirectX::XMMatrixLookAtLH(eyePosition, focusPoint, upDir);
 
     float aspectRatio  = m_Width / static_cast<float>(m_Height);
-    m_ProjectionMatrix = XMMatrixPerspectiveFovRH(m_FoV, aspectRatio, 0.1f, 100.0f);
+    m_ProjectionMatrix = DirectX::XMMatrixPerspectiveFovLH(m_FoV, aspectRatio, 0.1f, 100.0f);
 }
 
 void Game::OnRender()
@@ -280,8 +280,6 @@ void Game::OnRender()
 
     XMMATRIX mvpMatrix = XMMatrixMultiply(m_ModelMatrix, m_ViewMatrix);
     mvpMatrix          = XMMatrixMultiply(mvpMatrix, m_ProjectionMatrix);
-    for (int i = 0; i < 16; i++) std::cerr << mvpMatrix.r[i / 4].m128_f32[i % 4] << ' ';
-    std::cerr << '\n';
     commandList->SetGraphicsRoot32BitConstants(0, sizeof(mvpMatrix) / 4, &mvpMatrix, 0);
     commandList->DrawIndexedInstanced(_countof(g_Indices), 1, 0, 0, 0);
 
