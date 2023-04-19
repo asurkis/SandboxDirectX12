@@ -225,6 +225,7 @@ void Game::OnUpdate()
     static uint64_t                           frameCounter = 0;
     static std::chrono::high_resolution_clock clock;
     static auto                               t0 = clock.now();
+    static auto                               epoch = clock.now();
 
     ++frameCounter;
     auto                          t1 = clock.now();
@@ -241,7 +242,7 @@ void Game::OnUpdate()
         t0           = t1;
     }
 
-    std::chrono::duration<double> timeTotal    = t1.time_since_epoch();
+    std::chrono::duration<double> timeTotal    = t1 - epoch;
     float                         angle        = static_cast<float>(timeTotal.count());
     XMVECTOR                      rotationAxis = XMVectorSet(0, 1, 1, 0);
     m_ModelMatrix                              = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
