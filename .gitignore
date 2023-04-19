@@ -2,3 +2,5 @@
 out
 README.html
 vs_2022
+*.cso
+*.pdb
