@@ -13,10 +13,10 @@ foreach(FILE ${SHADER_FILES})
     get_source_file_property(SHADER_TYPE "${FILE}.hlsl" ShaderType)
     add_custom_command(
         TARGET SHADERS
-        COMMAND dxc.exe 
-            "-T" "${SHADER_TYPE}_6_0" 
-            "${CMAKE_CURRENT_SOURCE_DIR}/${FILE}.hlsl" 
-            "-Fo" "${FILE}.cso" 
+        COMMAND dxc.exe
+            "-T" "${SHADER_TYPE}_6_0"
+            "${CMAKE_CURRENT_SOURCE_DIR}/${FILE}.hlsl"
+            "-Fo" "${FILE}.cso"
             "-Zi" "-Fd" "${FILE}.pdb"
         DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${FILE}.hlsl"
     )
