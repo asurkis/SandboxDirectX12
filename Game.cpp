@@ -267,7 +267,7 @@ void Game::OnRender()
     TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     FLOAT clearColor[] = {0.4f, 0.6f, 0.9f, 1.0f};
     ClearRTV(commandList, rtv, clearColor);
-    ClearDepth(commandList, dsv, 1.0f);
+    ClearDepth(commandList, dsv, 0.5f);
 
     commandList->SetPipelineState(m_PipelineState.Get());
     commandList->SetGraphicsRootSignature(m_RootSignature.Get());

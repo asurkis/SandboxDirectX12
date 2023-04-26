@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.10)
 project(SandboxDirectX12)
 set(CMAKE_CXX_STANDARD 17)
 add_subdirectory(DirectX-Headers)
@@ -6,10 +6,11 @@ add_subdirectory(DirectX-Headers)
 set(SHADER_FILES Vertex.hlsl Pixel.hlsl)
 add_custom_target(Shaders SOURCES ${SHADER_FILES})
 
-set_source_files_properties( Vertex.hlsl PROPERTIES ShaderType vs )
-set_source_files_properties(  Pixel.hlsl PROPERTIES ShaderType ps )
+set_source_files_properties( Vertex.hlsl PROPERTIES ShaderType vs VS_SHADER_TYPE Vertex )
+set_source_files_properties(  Pixel.hlsl PROPERTIES ShaderType ps VS_SHADER_TYPE  Pixel )
 
 foreach(FILE ${SHADER_FILES})
+    set_source_files_properties(${FILE} PROPERTIES VS_SHADER_MODEL 6.0)
     get_filename_component(FILE_WE "${FILE}" NAME_WE)
     get_source_file_property(SHADER_TYPE "${FILE}" ShaderType)
     add_custom_command(

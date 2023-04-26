@@ -288,9 +288,8 @@ class Application
         UpdateRenderTargetViews(m_Device->Get(), m_SwapChain, m_RTVDescriptorHeap);
 
         for (int i = 0; i < BufferCount; ++i)
-            m_CommandAllocators[i] = m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
-        m_CommandList = m_Device->CreateCommandList(m_CommandAllocators[m_CurrentBackBufferIndex],
-                                                    D3D12_COMMAND_LIST_TYPE_DIRECT);
+            m_CommandAllocators[i] = m_CommandQueueDirect->CreateCommandAllocator();
+        m_CommandList = m_CommandQueueDirect->CreateCommandList(m_CommandAllocators[m_CurrentBackBufferIndex]);
     }
 
     ~Application() { Flush(); }

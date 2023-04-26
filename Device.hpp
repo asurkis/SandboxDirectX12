@@ -76,19 +76,4 @@ class Device
         Assert(m_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heap)));
         return heap;
     }
-
-    PCommandAllocator CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE type)
-    {
-        PCommandAllocator allocator;
-        Assert(m_Device->CreateCommandAllocator(type, IID_PPV_ARGS(&allocator)));
-        return allocator;
-    }
-
-    PGraphicsCommandList CreateCommandList(PCommandAllocator allocator, D3D12_COMMAND_LIST_TYPE type)
-    {
-        PGraphicsCommandList list;
-        Assert(m_Device->CreateCommandList(0, type, allocator.Get(), nullptr, IID_PPV_ARGS(&list)));
-        // Assert(list->Close());
-        return list;
-    }
 };

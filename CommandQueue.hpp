@@ -28,20 +28,6 @@ class CommandQueue
     CommandAllocatorQueue m_CommandAllocatorQueue;
     CommandListQueue      m_CommandListQueue;
 
-    PCommandAllocator CreateCommandAllocator()
-    {
-        PCommandAllocator allocator;
-        Assert(m_Device->CreateCommandAllocator(m_CommandListType, IID_PPV_ARGS(&allocator)));
-        return allocator;
-    }
-
-    PGraphicsCommandList CreateCommandList(PCommandAllocator allocator)
-    {
-        PGraphicsCommandList list;
-        Assert(m_Device->CreateCommandList(0, m_CommandListType, allocator.Get(), nullptr, IID_PPV_ARGS(&list)));
-        return list;
-    }
-
   public:
     CommandQueue(PDevice device, D3D12_COMMAND_LIST_TYPE type)
         : m_Device(device),
@@ -63,6 +49,20 @@ class CommandQueue
     ~CommandQueue() { CloseHandle(m_FenceEvent); }
 
     PCommandQueue Get() const noexcept { return m_CommandQueue; }
+
+    PCommandAllocator CreateCommandAllocator()
+    {
+        PCommandAllocator allocator;
+        Assert(m_Device->CreateCommandAllocator(m_CommandListType, IID_PPV_ARGS(&allocator)));
+        return allocator;
+    }
+
+    PGraphicsCommandList CreateCommandList(PCommandAllocator allocator)
+    {
+        PGraphicsCommandList list;
+        Assert(m_Device->CreateCommandList(0, m_CommandListType, allocator.Get(), nullptr, IID_PPV_ARGS(&list)));
+        return list;
+    }
 
     PSwapChain CreateSwapChain(HWND hWnd, bool tearingSupport, UINT width, UINT height, UINT bufferCount)
     {
