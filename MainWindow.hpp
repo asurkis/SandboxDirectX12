@@ -31,27 +31,16 @@ class WindowClass
         cls.hIconSm       = cls.hIcon;
 
         ATOM atom = RegisterClassExW(&cls);
-        if (!atom)
-            throw std::exception();
+        if (!atom) throw std::exception();
     }
 
     WindowClass(const WindowClass &)            = delete;
     WindowClass &operator=(const WindowClass &) = delete;
 
-    ~WindowClass()
-    {
-        UnregisterClassW(m_Name, m_hInstance);
-    }
+    ~WindowClass() { UnregisterClassW(m_Name, m_hInstance); }
 
-    constexpr HINSTANCE HInstance() const noexcept
-    {
-        return m_hInstance;
-    }
-
-    constexpr LPCWSTR Name() const noexcept
-    {
-        return m_Name;
-    }
+    constexpr HINSTANCE HInstance() const noexcept { return m_hInstance; }
+    constexpr LPCWSTR   Name() const noexcept { return m_Name; }
 };
 
 class Window
@@ -87,20 +76,14 @@ class Window
         if (!m_hWnd)
         {
             DWORD err = GetLastError();
-            throw std::exception(std::to_string(err).c_str());
+            throw std::runtime_error(std::to_string(err));
         }
     }
 
-    ~Window()
-    {
-        DestroyWindow(m_hWnd);
-    }
+    ~Window() { DestroyWindow(m_hWnd); }
 
     Window(const Window &)            = delete;
     Window &operator=(const Window &) = delete;
 
-    constexpr HWND HWnd() const noexcept
-    {
-        return m_hWnd;
-    }
+    constexpr HWND Get() const noexcept { return m_hWnd; }
 };

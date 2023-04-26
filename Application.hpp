@@ -8,11 +8,9 @@
 #include "MainWindow.hpp"
 #include "Utils.hpp"
 
-#include <algorithm>
-#include <chrono>
-#include <sstream>
-
 class Game;
+class WindowClass;
+class Window;
 
 class Application
 {
@@ -58,19 +56,20 @@ class Application
 
     std::optional<Game> m_Game;
 
-    inline static Application *instance = nullptr;
+    inline static Application *g_Instance = nullptr;
 
     static LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
-        if (!instance) return DefWindowProcW(hWnd, uMsg, wParam, lParam);
+        if (!g_Instance)
+            return DefWindowProcW(hWnd, uMsg, wParam, lParam);
 
         switch (uMsg)
         {
         case WM_DESTROY: PostQuitMessage(0); break;
 
         case WM_PAINT:
-            instance->m_Game->OnUpdate();
-            instance->m_Game->OnRender();
+            g_Instance->m_Game->OnUpdate();
+            g_Instance->m_Game->OnRender();
             break;
 
         case WM_SYSKEYDOWN:
@@ -79,15 +78,16 @@ class Application
 
             switch (wParam)
             {
-            case 'V': instance->m_VSync ^= true; break;
+            case 'V': g_Instance->m_VSync ^= true; break;
 
             case VK_ESCAPE: PostQuitMessage(0); break;
 
             case VK_RETURN:
-                if (alt) instance->ToggleFullscreen();
+                if (alt)
+                    g_Instance->ToggleFullscreen();
                 break;
 
-            case VK_F11: instance->ToggleFullscreen(); break;
+            case VK_F11: g_Instance->ToggleFullscreen(); break;
             }
             break;
         }
@@ -96,10 +96,10 @@ class Application
 
         case WM_SIZE: {
             RECT cr = {};
-            GetClientRect(instance->m_Window.HWnd(), &cr);
+            GetClientRect(g_Instance->m_Window.Get(), &cr);
             LONG width  = cr.right - cr.left;
             LONG height = cr.bottom - cr.top;
-            instance->Resize(width, height);
+            g_Instance->Resize(width, height);
             break;
         }
 
@@ -107,28 +107,6 @@ class Application
         }
 
         return 0;
-    }
-
-    void ParseCommandLineArguments()
-    {
-        int       argc;
-        wchar_t **argv = ::CommandLineToArgvW(::GetCommandLineW(), &argc);
-
-        for (size_t i = 0; i < argc; ++i)
-        {
-            if (wcscmp(argv[i], L"-w") == 0 || wcscmp(argv[i], L"--width") == 0)
-            {
-                m_ClientWidth = ::wcstol(argv[++i], nullptr, 10);
-            }
-            if (wcscmp(argv[i], L"-h") == 0 || wcscmp(argv[i], L"--height") == 0)
-            {
-                m_ClientHeight = ::wcstol(argv[++i], nullptr, 10);
-            }
-            if (wcscmp(argv[i], L"-warp") == 0 || wcscmp(argv[i], L"--warp") == 0) { m_UseWarp = true; }
-        }
-
-        // Free memory allocated by CommandLineToArgvW
-        ::LocalFree(argv);
     }
 
     void EnableDebugLayer()
@@ -164,10 +142,12 @@ class Application
         {
             DXGI_ADAPTER_DESC1 desc1;
             adapter1->GetDesc1(&desc1);
-            if (desc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) continue;
+            if (desc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+                continue;
             if (FAILED(D3D12CreateDevice(adapter1.Get(), D3D_FEATURE_LEVEL_12_1, __uuidof(ID3D12Device), nullptr)))
                 continue;
-            if (desc1.DedicatedVideoMemory < maxDedicatedVram) continue;
+            if (desc1.DedicatedVideoMemory < maxDedicatedVram)
+                continue;
             maxDedicatedVram = desc1.DedicatedVideoMemory;
             Assert(adapter1.As(&adapter4));
         }
@@ -177,7 +157,8 @@ class Application
     bool CheckTearingSupport()
     {
         ComPtr<IDXGIFactory5> factory5;
-        if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory5)))) return false;
+        if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory5))))
+            return false;
         BOOL allowTearing = FALSE;
         if (FAILED(
                 factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing))))
@@ -201,7 +182,8 @@ class Application
 
     void Resize(UINT32 width, UINT32 height)
     {
-        if (m_ClientWidth == width && m_ClientHeight == height) return;
+        if (m_ClientWidth == width && m_ClientHeight == height)
+            return;
         m_ClientWidth  = (std::max)(1u, width);
         m_ClientHeight = (std::max)(1u, height);
         m_CommandQueueDirect->Flush();
@@ -225,53 +207,55 @@ class Application
 
     void SetFullscreen(bool fullscreen)
     {
-        if (m_Fullscreen == fullscreen) return;
+        if (m_Fullscreen == fullscreen)
+            return;
         m_Fullscreen = fullscreen;
         if (m_Fullscreen)
         {
-            GetWindowRect(m_Window.HWnd(), &m_WindowRect);
+            GetWindowRect(m_Window.Get(), &m_WindowRect);
             UINT windowStyle = WS_OVERLAPPED;
-            SetWindowLongW(m_Window.HWnd(), GWL_STYLE, windowStyle);
+            SetWindowLongW(m_Window.Get(), GWL_STYLE, windowStyle);
 
-            HMONITOR      hMonitor    = MonitorFromWindow(m_Window.HWnd(), MONITOR_DEFAULTTONEAREST);
+            HMONITOR      hMonitor    = MonitorFromWindow(m_Window.Get(), MONITOR_DEFAULTTONEAREST);
             MONITORINFOEX monitorInfo = {};
             monitorInfo.cbSize        = sizeof(MONITORINFOEX);
             GetMonitorInfoW(hMonitor, &monitorInfo);
 
-            SetWindowPos(m_Window.HWnd(),
+            SetWindowPos(m_Window.Get(),
                          HWND_TOP,
                          monitorInfo.rcMonitor.left,
                          monitorInfo.rcMonitor.top,
                          monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left,
                          monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top,
                          SWP_FRAMECHANGED | SWP_NOACTIVATE);
-            ShowWindow(m_Window.HWnd(), SW_MAXIMIZE);
+            ShowWindow(m_Window.Get(), SW_MAXIMIZE);
         }
         else
         {
-            SetWindowLong(m_Window.HWnd(), GWL_STYLE, WS_OVERLAPPEDWINDOW);
-            SetWindowPos(m_Window.HWnd(),
+            SetWindowLong(m_Window.Get(), GWL_STYLE, WS_OVERLAPPEDWINDOW);
+            SetWindowPos(m_Window.Get(),
                          HWND_NOTOPMOST,
                          m_WindowRect.left,
                          m_WindowRect.top,
                          m_WindowRect.right - m_WindowRect.left,
                          m_WindowRect.bottom - m_WindowRect.top,
                          SWP_FRAMECHANGED | SWP_NOACTIVATE);
-            ShowWindow(m_Window.HWnd(), SW_NORMAL);
+            ShowWindow(m_Window.Get(), SW_NORMAL);
         }
     }
 
   public:
+    static Application *Get() noexcept { return g_Instance; }
+
     Application(HINSTANCE hInstance)
         : m_WindowClass(hInstance, L"DX12WindowClass", &Application::WndProc),
           m_Window(m_WindowClass, L"Main Window Title", 1280, 720)
     {
-        ParseCommandLineArguments();
         EnableDebugLayer();
 
         m_TearingSupported = CheckTearingSupport();
 
-        GetWindowRect(m_Window.HWnd(), &m_WindowRect);
+        GetWindowRect(m_Window.Get(), &m_WindowRect);
 
         ComPtr<IDXGIAdapter4> adapter4 = GetAdapter(m_UseWarp);
 
@@ -280,7 +264,7 @@ class Application
         m_CommandQueueCompute.emplace(m_Device->Get(), D3D12_COMMAND_LIST_TYPE_COMPUTE);
         m_CommandQueueCopy.emplace(m_Device->Get(), D3D12_COMMAND_LIST_TYPE_COPY);
         m_SwapChain = m_CommandQueueDirect->CreateSwapChain(
-            m_Window.HWnd(), m_TearingSupported, m_ClientWidth, m_ClientHeight, BufferCount);
+            m_Window.Get(), m_TearingSupported, m_ClientWidth, m_ClientHeight, BufferCount);
         m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
         m_RTVDescriptorHeap      = m_Device->CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, BufferCount);
         m_RTVDescriptorSize      = m_Device->Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -303,9 +287,9 @@ class Application
 
     int Run(int nShowCmd)
     {
-        instance = this;
+        g_Instance = this;
         m_Game.emplace(this, m_ClientWidth, m_ClientHeight, m_VSync);
-        ShowWindow(m_Window.HWnd(), nShowCmd);
+        ShowWindow(m_Window.Get(), nShowCmd);
 
         MSG msg;
         while (GetMessageW(&msg, HWND_DESKTOP, 0, 0))
@@ -315,7 +299,7 @@ class Application
         }
 
         m_Game.reset();
-        instance = nullptr;
+        g_Instance = nullptr;
         return static_cast<int>(msg.wParam);
     }
 

@@ -3,7 +3,20 @@ project(SandboxDirectX12)
 set(CMAKE_CXX_STANDARD 17)
 add_subdirectory(DirectX-Headers)
 
-set(SHADER_FILES Vertex.hlsl Pixel.hlsl)
+set(SHADER_FILES 
+    Vertex.hlsl 
+    Pixel.hlsl
+)
+
+set(CLASSES
+    Application
+    Device
+    CommandQueue
+    UploadBuffer
+    MainWindow
+    Game
+)
+
 add_custom_target(Shaders SOURCES ${SHADER_FILES})
 
 set_source_files_properties( Vertex.hlsl PROPERTIES ShaderType vs VS_SHADER_TYPE Vertex )
@@ -23,17 +36,14 @@ foreach(FILE ${SHADER_FILES})
             "${CMAKE_CURRENT_SOURCE_DIR}/${FILE}")
 endforeach()
 
-add_executable(${PROJECT_NAME} WIN32
-    main.cpp
-    pch.hpp
-    Application.hpp Application.cpp
-    Utils.hpp
-    Game.hpp Game.cpp
-    MainWindow.hpp
-    Device.hpp
-    CommandQueue.hpp
-)
+set(CPP_FILES "")
+foreach(CLS ${CLASSES})
+    message("37 ${CLS}")
+    SET(CPP_FILES ${CPP_FILES} ${CLS}.cpp ${CLS}.hpp)
+endforeach()
+message("39 ${CPP_FILES}")
 
+add_executable(${PROJECT_NAME} WIN32 main.cpp pch.hpp ${CPP_FILES})
 target_precompile_headers(${PROJECT_NAME} PRIVATE pch.hpp)
 
 add_dependencies(${PROJECT_NAME} Shaders)

@@ -3,7 +3,6 @@
 #include "pch.hpp"
 
 #include "Utils.hpp"
-#include <queue>
 
 class CommandQueue
 {
@@ -43,7 +42,8 @@ class CommandQueue
         Assert(m_Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Fence)));
 
         m_FenceEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
-        if (!m_FenceEvent) throw std::exception("Failed to create fence event");
+        if (!m_FenceEvent)
+            throw std::exception("Failed to create fence event");
     }
 
     ~CommandQueue() { CloseHandle(m_FenceEvent); }
@@ -105,7 +105,10 @@ class CommandQueue
             m_CommandAllocatorQueue.pop();
             Assert(allocator->Reset());
         }
-        else { allocator = CreateCommandAllocator(); }
+        else
+        {
+            allocator = CreateCommandAllocator();
+        }
 
         PGraphicsCommandList commandList;
         if (!m_CommandListQueue.empty())
@@ -114,7 +117,10 @@ class CommandQueue
             m_CommandListQueue.pop();
             Assert(commandList->Reset(allocator.Get(), nullptr));
         }
-        else { commandList = CreateCommandList(allocator); }
+        else
+        {
+            commandList = CreateCommandList(allocator);
+        }
 
         Assert(commandList->SetPrivateDataInterface(__uuidof(ID3D12CommandAllocator), allocator.Get()));
         return commandList;
@@ -149,7 +155,8 @@ class CommandQueue
 
     void WaitForFenceValue(UINT64 fenceValue, DWORD milliseconds = DWORD_MAX)
     {
-        if (IsFenceComplete(fenceValue)) return;
+        if (IsFenceComplete(fenceValue))
+            return;
         Assert(m_Fence->SetEventOnCompletion(fenceValue, m_FenceEvent));
         WaitForSingleObject(m_FenceEvent, milliseconds);
     }

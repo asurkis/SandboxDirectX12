@@ -37,15 +37,14 @@ static WORD g_Indices[] = {
 };
 
 Game::Game(Application *application, int width, int height, bool vSync)
-    : m_Application(application),
-      m_ScissorRect{0, 0, LONG_MAX, LONG_MAX},
+    : m_ScissorRect{0, 0, LONG_MAX, LONG_MAX},
       m_Viewport{0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)},
       m_FoV(45.0f),
       m_Width(width),
       m_Height(height)
 {
-    PDevice              device       = m_Application->GetDevice();
-    CommandQueue        &commandQueue = m_Application->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+    PDevice              device       = Application::Get()->GetDevice();
+    CommandQueue        &commandQueue = Application::Get()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
     PGraphicsCommandList commandList  = commandQueue.GetCommandList();
 
     PResource intermediateVertexBuffer;
@@ -158,7 +157,7 @@ void Game::UpdateBufferResource(PGraphicsCommandList commandList,
                                 const void          *bufferData,
                                 D3D12_RESOURCE_FLAGS flags)
 {
-    PDevice device     = m_Application->GetDevice();
+    PDevice device     = Application::Get()->GetDevice();
     size_t  bufferSize = numElements * elementSize;
     Assert(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
                                            D3D12_HEAP_FLAG_NONE,
@@ -184,10 +183,10 @@ void Game::UpdateBufferResource(PGraphicsCommandList commandList,
 void Game::ResizeDepthBuffer(int width, int height)
 {
     if (!m_ContentLoaded) return;
-    m_Application->Flush();
+    Application::Get()->Flush();
     width          = (std::max)(1, width);
     height         = (std::max)(1, height);
-    PDevice device = m_Application->GetDevice();
+    PDevice device = Application::Get()->GetDevice();
 
     D3D12_CLEAR_VALUE clearValue = {};
     clearValue.Format            = DXGI_FORMAT_D32_FLOAT;
@@ -224,7 +223,7 @@ void Game::OnUpdate()
 {
     static uint64_t                           frameCounter = 0;
     static std::chrono::high_resolution_clock clock;
-    static auto                               t0 = clock.now();
+    static auto                               t0    = clock.now();
     static auto                               epoch = clock.now();
 
     ++frameCounter;
@@ -257,11 +256,11 @@ void Game::OnUpdate()
 
 void Game::OnRender()
 {
-    CommandQueue        &commandQueue           = m_Application->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+    CommandQueue        &commandQueue           = Application::Get()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
     PGraphicsCommandList commandList            = commandQueue.GetCommandList();
-    UINT                 currentBackBufferIndex = m_Application->CurrentBackBufferIndex();
-    PResource            backBuffer             = m_Application->CurrentBackBuffer();
-    auto                 rtv                    = m_Application->CurrentRTV();
+    UINT                 currentBackBufferIndex = Application::Get()->CurrentBackBufferIndex();
+    PResource            backBuffer             = Application::Get()->CurrentBackBuffer();
+    auto                 rtv                    = Application::Get()->CurrentRTV();
     auto                 dsv                    = m_DSVHeap->GetCPUDescriptorHandleForHeapStart();
 
     TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -287,6 +286,6 @@ void Game::OnRender()
     TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
     m_FenceValues[currentBackBufferIndex] = commandQueue.ExecuteCommandList(commandList);
-    m_Application->Present();
+    Application::Get()->Present();
     commandQueue.WaitForFenceValue(m_FenceValues[currentBackBufferIndex]);
 }

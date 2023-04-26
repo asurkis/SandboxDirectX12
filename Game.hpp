@@ -6,7 +6,6 @@ class Application;
 
 class Game
 {
-    Application             *m_Application;
     PResource                m_VertexBuffer;
     D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView;
     PResource                m_IndexBuffer;
