@@ -91,6 +91,11 @@ class Application
                 break;
 
             case VK_F11: g_Instance->ToggleFullscreen(); break;
+
+            case VK_OEM_MINUS: g_Instance->m_Game->m_FovStep--; break;
+            case VK_OEM_PLUS: g_Instance->m_Game->m_FovStep++; break;
+            case 0x30: g_Instance->m_Game->m_FovStep = 0; break;
+            case VK_RETURN: g_Instance->m_Game->m_ShakeStrength = 100.0; break;
             }
             break;
         }

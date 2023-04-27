@@ -18,7 +18,6 @@ class Game
     D3D12_VIEWPORT  m_Viewport;
     D3D12_RECT      m_ScissorRect;
 
-    float             m_FoV;
     DirectX::XMMATRIX m_ModelMatrix;
     DirectX::XMMATRIX m_ViewMatrix;
     DirectX::XMMATRIX m_ProjectionMatrix;
@@ -44,6 +43,9 @@ class Game
     void OnResize(int width, int height);
     void OnUpdate();
     void OnRender();
+
+    int    m_FovStep = 0;
+    double m_ShakeStrength = 0.0;
 
     void TransitionResource(PGraphicsCommandList  commandList,
                             PResource             resource,

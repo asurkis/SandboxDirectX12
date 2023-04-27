@@ -39,7 +39,6 @@ static WORD g_Indices[] = {
 Game::Game(Application *application, int width, int height, bool vSync)
     : m_ScissorRect{0, 0, LONG_MAX, LONG_MAX},
       m_Viewport{0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)},
-      m_FoV(45.0f),
       m_Width(width),
       m_Height(height)
 {
@@ -165,7 +164,8 @@ void Game::UpdateBufferResource(PGraphicsCommandList commandList,
                                            D3D12_RESOURCE_STATE_COPY_DEST,
                                            nullptr,
                                            IID_PPV_ARGS(destinationResource)));
-    if (!bufferData) return;
+    if (!bufferData)
+        return;
     Assert(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
                                            D3D12_HEAP_FLAG_NONE,
                                            &CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
@@ -182,7 +182,8 @@ void Game::UpdateBufferResource(PGraphicsCommandList commandList,
 
 void Game::ResizeDepthBuffer(int width, int height)
 {
-    if (!m_ContentLoaded) return;
+    if (!m_ContentLoaded)
+        return;
     Application::Get()->Flush();
     width          = (std::max)(1, width);
     height         = (std::max)(1, height);
@@ -212,7 +213,8 @@ void Game::ResizeDepthBuffer(int width, int height)
 
 void Game::OnResize(int width, int height)
 {
-    if (width == m_Width && height == m_Height) return;
+    if (width == m_Width && height == m_Height)
+        return;
     m_Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
     ResizeDepthBuffer(width, height);
     m_Width  = width;
@@ -251,7 +253,8 @@ void Game::OnUpdate()
     m_ViewMatrix                               = DirectX::XMMatrixLookAtLH(eyePosition, focusPoint, upDir);
 
     float aspectRatio  = m_Width / static_cast<float>(m_Height);
-    m_ProjectionMatrix = DirectX::XMMatrixPerspectiveFovLH(m_FoV, aspectRatio, 0.1f, 100.0f);
+    float fov          = 45.0f * expf(0.001f * m_FovStep);
+    m_ProjectionMatrix = DirectX::XMMatrixPerspectiveFovLH(fov, aspectRatio, 0.1f, 100.0f);
 }
 
 void Game::OnRender()
@@ -266,7 +269,7 @@ void Game::OnRender()
     TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     FLOAT clearColor[] = {0.4f, 0.6f, 0.9f, 1.0f};
     ClearRTV(commandList, rtv, clearColor);
-    ClearDepth(commandList, dsv, 0.5f);
+    ClearDepth(commandList, dsv, 1.0f);
 
     commandList->SetPipelineState(m_PipelineState.Get());
     commandList->SetGraphicsRootSignature(m_RootSignature.Get());
