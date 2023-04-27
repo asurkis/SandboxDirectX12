@@ -32,9 +32,10 @@ class UploadBuffer
 
       public:
         Page(size_t bytes);
-        bool       HasSpace(size_t bytes, size_t alignment) const;
+        ~Page();
+        bool       HasSpace(size_t bytes, size_t alignment) const noexcept;
         Allocation Allocate(size_t bytes, size_t alignment);
-        void       Reset();
+        void       Reset() noexcept { m_Offset = 0; }
     };
 
     using PPage    = std::shared_ptr<Page>;
@@ -45,5 +46,5 @@ class UploadBuffer
     PagePool m_PagePool;
     PagePool m_AvailablePages;
     PPage    m_CurrentPage;
-    size_t m_PageSize;
+    size_t   m_PageSize;
 };

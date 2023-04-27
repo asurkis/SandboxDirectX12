@@ -18,6 +18,8 @@ class Application
     static const UINT BufferCount = 3;
 
   private:
+    UINT64 m_FrameCount = 0;
+
     WindowClass m_WindowClass;
     Window      m_Window;
 
@@ -68,6 +70,7 @@ class Application
         case WM_DESTROY: PostQuitMessage(0); break;
 
         case WM_PAINT:
+            g_Instance->m_FrameCount++;
             g_Instance->m_Game->OnUpdate();
             g_Instance->m_Game->OnRender();
             break;
@@ -312,7 +315,7 @@ class Application
         case D3D12_COMMAND_LIST_TYPE_DIRECT: return *m_CommandQueueDirect;
         case D3D12_COMMAND_LIST_TYPE_COMPUTE: return *m_CommandQueueCompute;
         case D3D12_COMMAND_LIST_TYPE_COPY: return *m_CommandQueueCopy;
-        default: throw std::runtime_error("No such queue");
+        default: throw std::exception("No such queue");
         }
     }
 
@@ -335,4 +338,6 @@ class Application
 
         return m_CurrentBackBufferIndex;
     }
+
+    UINT64 GetFrameCount() const noexcept { return m_FrameCount; }
 };

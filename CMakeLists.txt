@@ -10,11 +10,12 @@ set(SHADER_FILES
 
 set(CLASSES
     Application
-    Device
     CommandQueue
-    UploadBuffer
-    MainWindow
+    DescriptorAllocator
+    Device
     Game
+    MainWindow
+    UploadBuffer
 )
 
 add_custom_target(Shaders SOURCES ${SHADER_FILES})

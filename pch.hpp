@@ -4,12 +4,16 @@
 #include <chrono>
 #include <deque>
 #include <ios>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <new>
 #include <optional>
 #include <queue>
 #include <sstream>
 #include <stdexcept>
+#include <unordered_map>
+#include <unordered_set>
 
 #include <DirectXMath.h>
 #include <Windows.h>
@@ -18,6 +22,9 @@
 #include <d3dx12.h>
 #include <dxgi1_6.h>
 #include <wrl.h>
+
+using std::size_t;
+using std::uint64_t;
 
 using Microsoft::WRL::ComPtr;
 

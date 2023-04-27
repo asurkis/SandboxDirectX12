@@ -31,7 +31,8 @@ class WindowClass
         cls.hIconSm       = cls.hIcon;
 
         ATOM atom = RegisterClassExW(&cls);
-        if (!atom) throw std::exception();
+        if (!atom)
+            throw std::exception();
     }
 
     WindowClass(const WindowClass &)            = delete;

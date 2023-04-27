@@ -13,3 +13,14 @@
             throw std::runtime_error(ss_.str());                                                                       \
         }                                                                                                              \
     } while (0)
+
+struct Math
+{
+    Math() = delete;
+
+    static size_t AlignUp(size_t bytes, size_t alignment)
+    {
+        size_t tmp = (bytes + alignment - 1);
+        return tmp - tmp % alignment;
+    }
+};
