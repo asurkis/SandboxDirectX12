@@ -2,6 +2,7 @@
 #include "Application.hpp"
 
 #include <iostream>
+#include <random>
 
 using namespace DirectX;
 
@@ -225,36 +226,71 @@ void Game::OnUpdate()
 {
     static uint64_t                           frameCounter = 0;
     static std::chrono::high_resolution_clock clock;
-    static auto                               t0    = clock.now();
-    static auto                               epoch = clock.now();
+    static auto                               epoch   = clock.now();
+    static auto                               tSecond = clock.now();
+    static auto                               t0      = clock.now();
+
+    static std::default_random_engine            randomEngine(std::random_device{}());
+    static std::uniform_real_distribution<float> uniformDist(0.0, 1.0);
 
     ++frameCounter;
-    auto                          t1 = clock.now();
-    std::chrono::duration<double> dt = t1 - t0;
-    // t0 = t1;
+    auto   t1 = clock.now();
+    double dt = (t1 - t0).count();
+    t0        = t1;
 
-    double elapsedSeconds = dt.count();
+    double elapsedSeconds = std::chrono::duration<double>(t1 - tSecond).count();
     if (elapsedSeconds > 1.0)
     {
         std::wstringstream ss;
         ss << L"TPS: " << frameCounter / elapsedSeconds << '\n';
         OutputDebugStringW(ss.str().c_str());
         frameCounter = 0;
-        t0           = t1;
+        tSecond      = t1;
     }
 
-    std::chrono::duration<double> timeTotal    = t1 - epoch;
-    float                         angle        = static_cast<float>(timeTotal.count());
-    XMVECTOR                      rotationAxis = XMVectorSet(0, 1, 1, 0);
-    m_ModelMatrix                              = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
-    XMVECTOR eyePosition                       = XMVectorSet(0, -10, 0, 1);
-    XMVECTOR focusPoint                        = XMVectorSet(0, 0, 0, 1);
-    XMVECTOR upDir                             = XMVectorSet(0, 0, 1, 0);
-    m_ViewMatrix                               = DirectX::XMMatrixLookAtLH(eyePosition, focusPoint, upDir);
+    double   timeTotal    = std::chrono::duration<double>(t1 - epoch).count();
+    float    angle        = timeTotal;
+    XMVECTOR rotationAxis = XMVectorSet(0, 1, 1, 0);
+    m_ModelMatrix         = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
+    XMVECTOR eyePosition  = XMVectorSet(0, -10, 0, 1);
+    XMVECTOR focusPoint   = XMVectorSet(0, 0, 0, 1);
+    XMVECTOR upDir        = XMVectorSet(0, 0, 1, 0);
+    m_ViewMatrix          = DirectX::XMMatrixLookAtLH(eyePosition, focusPoint, upDir);
 
-    float aspectRatio  = m_Width / static_cast<float>(m_Height);
-    float fov          = 45.0f * expf(0.001f * m_FovStep);
-    m_ProjectionMatrix = DirectX::XMMatrixPerspectiveFovLH(fov, aspectRatio, 0.1f, 100.0f);
+    float aspectRatio = m_Width / static_cast<float>(m_Height);
+
+    float fov    = 45.0f * expf(-0.001f * m_FovStep);
+    float tanFov = tanf(0.5f * fov);
+
+    float shiftX = 0.02f * m_ShakeStrength * (uniformDist(randomEngine) * 2.0f - 1.0f);
+    float shiftY = 0.02f * m_ShakeStrength * (uniformDist(randomEngine) * 2.0f - 1.0f);
+
+    float x1 = (shiftX - tanFov) * aspectRatio;
+    float x2 = (shiftX + tanFov) * aspectRatio;
+    float y1 = shiftY - tanFov;
+    float y2 = shiftY + tanFov;
+    float z1 = 0.1f;
+    float z2 = 100.0f;
+
+    m_ProjectionMatrix = XMMATRIX(2.0f / (x2 - x1),      // row 0 col 0
+                                  0.0f,                  // row 1 col 0
+                                  0.0f,                  // row 2 col 0
+                                  0.0f,                  // row 3 col 0
+                                  0.0f,                  // row 0 col 1
+                                  2.0f / (y2 - y1),      // row 1 col 1
+                                  0.0f,                  // row 2 col 1
+                                  0.0f,                  // row 3 col 1
+                                  (x1 + x2) / (x1 - x2), // row 0 col 2
+                                  (y1 + y2) / (y1 - y2), // row 1 col 2
+                                  z2 / (z2 - z1),        // row 2 col 2
+                                  1.0f,                  // row 3 col 2
+                                  0.0f,                  // row 0 col 3
+                                  0.0f,                  // row 1 col 3
+                                  -z1 * z2 / (z2 - z1),  // row 2 col 3
+                                  0.0f                   // row 3 col 3
+    );
+    m_ShakeStrength *= exp(-1e-9 * dt);
+    // m_ProjectionMatrix = DirectX::XMMatrixPerspectiveFovLH(fov, aspectRatio, 0.1f, 100.0f);
 }
 
 void Game::OnRender()
