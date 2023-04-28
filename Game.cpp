@@ -230,8 +230,8 @@ void Game::OnUpdate()
     static auto                               tSecond = clock.now();
     static auto                               t0      = clock.now();
 
-    static std::default_random_engine            randomEngine(std::random_device{}());
-    static std::uniform_real_distribution<float> uniformDist(0.0, 1.0);
+    static std::default_random_engine      randomEngine(std::random_device{}());
+    static std::normal_distribution<float> distribution(0.0, 1.0);
 
     ++frameCounter;
     auto   t1 = clock.now();
@@ -262,8 +262,8 @@ void Game::OnUpdate()
     float fov    = 45.0f * expf(-0.001f * m_FovStep);
     float tanFov = tanf(0.5f * fov);
 
-    float shiftX = 0.02f * m_ShakeStrength * (uniformDist(randomEngine) * 2.0f - 1.0f);
-    float shiftY = 0.02f * m_ShakeStrength * (uniformDist(randomEngine) * 2.0f - 1.0f);
+    float shiftX = 0.02f * m_ShakeStrength * distribution(randomEngine);
+    float shiftY = 0.02f * m_ShakeStrength * distribution(randomEngine);
 
     float x1 = (shiftX - tanFov) * aspectRatio;
     float x2 = (shiftX + tanFov) * aspectRatio;
