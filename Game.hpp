@@ -14,7 +14,8 @@ class Game
 
     PDescriptorHeap m_DSVHeap;
     PRootSignature  m_RootSignature;
-    PPipelineState  m_PipelineState;
+    PPipelineState  m_PipelineStateLess;
+    PPipelineState  m_PipelineStateGreater;
     D3D12_VIEWPORT  m_Viewport;
     D3D12_RECT      m_ScissorRect;
 
@@ -44,8 +45,9 @@ class Game
     void OnUpdate();
     void OnRender();
 
-    int    m_FovStep = 0;
+    int    m_FovStep       = 0;
     double m_ShakeStrength = 0.0;
+    bool   m_ZLess         = true;
 
     void TransitionResource(PGraphicsCommandList  commandList,
                             PResource             resource,
@@ -55,15 +57,5 @@ class Game
         CD3DX12_RESOURCE_BARRIER barrier
             = CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(), beforeState, afterState);
         commandList->ResourceBarrier(1, &barrier);
-    }
-
-    void ClearRTV(PGraphicsCommandList commandList, D3D12_CPU_DESCRIPTOR_HANDLE rtv, FLOAT *clearColor)
-    {
-        commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
-    }
-
-    void ClearDepth(PGraphicsCommandList commandList, D3D12_CPU_DESCRIPTOR_HANDLE dsv, FLOAT depth)
-    {
-        commandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
     }
 };

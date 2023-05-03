@@ -94,8 +94,9 @@ class Application
 
             case VK_OEM_MINUS: g_Instance->m_Game->m_FovStep--; break;
             case VK_OEM_PLUS: g_Instance->m_Game->m_FovStep++; break;
-            case 0x30: g_Instance->m_Game->m_FovStep = 0; break;
+            case '0': g_Instance->m_Game->m_FovStep = 0; break;
             case VK_SPACE: g_Instance->m_Game->m_ShakeStrength = 1.0; break;
+            case 'Z': g_Instance->m_Game->m_ZLess ^= true; break;
             }
             break;
         }

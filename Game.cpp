@@ -152,24 +152,32 @@ Game::Game(Application *application, int width, int height, bool vSync)
     gpsDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShaderBlob.Get());
     gpsDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShaderBlob.Get());
 
+    gpsDesc.SampleMask = UINT_MAX;
+
+    gpsDesc.BlendState        = CD3DX12_BLEND_DESC(CD3DX12_DEFAULT());
     gpsDesc.RasterizerState   = CD3DX12_RASTERIZER_DESC(CD3DX12_DEFAULT());
     gpsDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(CD3DX12_DEFAULT());
 
-    gpsDesc.RasterizerState.CullMode    = D3D12_CULL_MODE_NONE;
-    gpsDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+    // Для сравнения с reversed Z
+    gpsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
     gpsDesc.InputLayout.pInputElementDescs = inputLayout;
     gpsDesc.InputLayout.NumElements        = _countof(inputLayout);
 
+    gpsDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+    gpsDesc.NumRenderTargets = 1;
+    gpsDesc.RTVFormats[0]    = DXGI_FORMAT_R8G8B8A8_UNORM;
+    gpsDesc.DSVFormat        = DXGI_FORMAT_D32_FLOAT;
+
     gpsDesc.SampleDesc.Count   = 1;
     gpsDesc.SampleDesc.Quality = 0;
 
-    gpsDesc.DSVFormat             = DXGI_FORMAT_D32_FLOAT;
-    gpsDesc.NumRenderTargets      = 1;
-    gpsDesc.RTVFormats[0]         = DXGI_FORMAT_R8G8B8A8_UNORM;
-    gpsDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(&m_PipelineStateLess)));
 
-    Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(&m_PipelineState)));
+    gpsDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
+    Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(&m_PipelineStateGreater)));
+
     // */
 
     UINT64 fenceValue = commandQueue.ExecuteCommandList(commandList);
@@ -301,22 +309,22 @@ void Game::OnUpdate()
     double z1 = 0.1;
     double z2 = 100.0;
 
-    m_ProjectionMatrix = XMMATRIX(static_cast<float>(2.0 / (x2 - x1)),       // row 0 col 0
-                                  0.0f,                                      // row 1 col 0
-                                  0.0f,                                      // row 2 col 0
-                                  0.0f,                                      // row 3 col 0
-                                  0.0f,                                      // row 0 col 1
-                                  static_cast<float>(2.0 / (y2 - y1)),       // row 1 col 1
-                                  0.0f,                                      // row 2 col 1
-                                  0.0f,                                      // row 3 col 1
-                                  static_cast<float>((x1 + x2) / (x1 - x2)), // row 0 col 2
-                                  static_cast<float>((y1 + y2) / (y1 - y2)), // row 1 col 2
-                                  static_cast<float>(z2 / (z2 - z1)),        // row 2 col 2
-                                  1.0f,                                      // row 3 col 2
-                                  0.0f,                                      // row 0 col 3
-                                  0.0f,                                      // row 1 col 3
-                                  static_cast<float>(-z1 * z2 / (z2 - z1)),  // row 2 col 3
-                                  0.0f                                       // row 3 col 3
+    m_ProjectionMatrix = XMMATRIX(static_cast<float>(2.0 / (x2 - x1)),                          // row 0 col 0
+                                  0.0f,                                                         // row 1 col 0
+                                  0.0f,                                                         // row 2 col 0
+                                  0.0f,                                                         // row 3 col 0
+                                  0.0f,                                                         // row 0 col 1
+                                  static_cast<float>(2.0 / (y2 - y1)),                          // row 1 col 1
+                                  0.0f,                                                         // row 2 col 1
+                                  0.0f,                                                         // row 3 col 1
+                                  static_cast<float>((x1 + x2) / (x1 - x2)),                    // row 0 col 2
+                                  static_cast<float>((y1 + y2) / (y1 - y2)),                    // row 1 col 2
+                                  static_cast<float>((m_ZLess ? z2 : -z1) / (z2 - z1)),         // row 2 col 2
+                                  1.0f,                                                         // row 3 col 2
+                                  0.0f,                                                         // row 0 col 3
+                                  0.0f,                                                         // row 1 col 3
+                                  static_cast<float>((m_ZLess ? -1 : 1) * z1 * z2 / (z2 - z1)), // row 2 col 3
+                                  0.0f                                                          // row 3 col 3
     );
     m_ShakeStrength *= exp(-1e-9 * dt);
     // m_ProjectionMatrix = DirectX::XMMatrixPerspectiveFovLH(fov, aspectRatio, 0.1f, 100.0f);
@@ -333,10 +341,19 @@ void Game::OnRender()
 
     TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     FLOAT clearColor[] = {0.4f, 0.6f, 0.9f, 1.0f};
-    ClearRTV(commandList, rtv, clearColor);
-    ClearDepth(commandList, dsv, 1.0f);
+    commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
 
-    commandList->SetPipelineState(m_PipelineState.Get());
+    if (m_ZLess)
+    {
+        commandList->SetPipelineState(m_PipelineStateLess.Get());
+        commandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+    }
+    else
+    {
+        commandList->SetPipelineState(m_PipelineStateGreater.Get());
+        commandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
+    }
+
     commandList->SetGraphicsRootSignature(m_RootSignature.Get());
     commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
