@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <deque>
+#include <functional>
 #include <ios>
 #include <map>
 #include <memory>

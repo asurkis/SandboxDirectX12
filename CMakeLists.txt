@@ -13,6 +13,7 @@ set(CLASSES
     CommandQueue
     DescriptorAllocator
     Device
+    DynamicDescriptorHeap
     Game
     MainWindow
     UploadBuffer
@@ -39,10 +40,8 @@ endforeach()
 
 set(CPP_FILES "")
 foreach(CLS ${CLASSES})
-    message("37 ${CLS}")
     SET(CPP_FILES ${CPP_FILES} ${CLS}.cpp ${CLS}.hpp)
 endforeach()
-message("39 ${CPP_FILES}")
 
 add_executable(${PROJECT_NAME} WIN32 main.cpp pch.hpp ${CPP_FILES})
 target_precompile_headers(${PROJECT_NAME} PRIVATE pch.hpp)

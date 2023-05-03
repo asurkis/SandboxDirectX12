@@ -235,7 +235,7 @@ void Game::OnUpdate()
 
     ++frameCounter;
     auto   t1 = clock.now();
-    double dt = (t1 - t0).count();
+    double dt = std::chrono::duration<double>(t1 - t0).count();
     t0        = t1;
 
     double elapsedSeconds = std::chrono::duration<double>(t1 - tSecond).count();
@@ -249,45 +249,45 @@ void Game::OnUpdate()
     }
 
     double   timeTotal    = std::chrono::duration<double>(t1 - epoch).count();
-    float    angle        = timeTotal;
+    double   angle        = timeTotal;
     XMVECTOR rotationAxis = XMVectorSet(0, 1, 1, 0);
-    m_ModelMatrix         = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
+    m_ModelMatrix         = DirectX::XMMatrixRotationAxis(rotationAxis, static_cast<float>(angle));
     XMVECTOR eyePosition  = XMVectorSet(0, -10, 0, 1);
     XMVECTOR focusPoint   = XMVectorSet(0, 0, 0, 1);
     XMVECTOR upDir        = XMVectorSet(0, 0, 1, 0);
     m_ViewMatrix          = DirectX::XMMatrixLookAtLH(eyePosition, focusPoint, upDir);
 
-    float aspectRatio = m_Width / static_cast<float>(m_Height);
+    double aspectRatio = m_Width / static_cast<double>(m_Height);
 
-    float fov    = 45.0f * expf(-0.001f * m_FovStep);
-    float tanFov = tanf(0.5f * fov);
+    double fov    = 45.0f * exp(-0.001f * m_FovStep);
+    double tanFov = tan(0.5f * fov);
 
-    float shiftX = 0.02f * m_ShakeStrength * distribution(randomEngine);
-    float shiftY = 0.02f * m_ShakeStrength * distribution(randomEngine);
+    double shiftX = 0.02f * m_ShakeStrength * distribution(randomEngine);
+    double shiftY = 0.02f * m_ShakeStrength * distribution(randomEngine);
 
-    float x1 = (shiftX - tanFov) * aspectRatio;
-    float x2 = (shiftX + tanFov) * aspectRatio;
-    float y1 = shiftY - tanFov;
-    float y2 = shiftY + tanFov;
-    float z1 = 0.1f;
-    float z2 = 100.0f;
+    double x1 = (shiftX - tanFov) * aspectRatio;
+    double x2 = (shiftX + tanFov) * aspectRatio;
+    double y1 = shiftY - tanFov;
+    double y2 = shiftY + tanFov;
+    double z1 = 0.1;
+    double z2 = 100.0;
 
-    m_ProjectionMatrix = XMMATRIX(2.0f / (x2 - x1),      // row 0 col 0
-                                  0.0f,                  // row 1 col 0
-                                  0.0f,                  // row 2 col 0
-                                  0.0f,                  // row 3 col 0
-                                  0.0f,                  // row 0 col 1
-                                  2.0f / (y2 - y1),      // row 1 col 1
-                                  0.0f,                  // row 2 col 1
-                                  0.0f,                  // row 3 col 1
-                                  (x1 + x2) / (x1 - x2), // row 0 col 2
-                                  (y1 + y2) / (y1 - y2), // row 1 col 2
-                                  z2 / (z2 - z1),        // row 2 col 2
-                                  1.0f,                  // row 3 col 2
-                                  0.0f,                  // row 0 col 3
-                                  0.0f,                  // row 1 col 3
-                                  -z1 * z2 / (z2 - z1),  // row 2 col 3
-                                  0.0f                   // row 3 col 3
+    m_ProjectionMatrix = XMMATRIX(static_cast<float>(2.0 / (x2 - x1)),       // row 0 col 0
+                                  0.0f,                                      // row 1 col 0
+                                  0.0f,                                      // row 2 col 0
+                                  0.0f,                                      // row 3 col 0
+                                  0.0f,                                      // row 0 col 1
+                                  static_cast<float>(2.0 / (y2 - y1)),       // row 1 col 1
+                                  0.0f,                                      // row 2 col 1
+                                  0.0f,                                      // row 3 col 1
+                                  static_cast<float>((x1 + x2) / (x1 - x2)), // row 0 col 2
+                                  static_cast<float>((y1 + y2) / (y1 - y2)), // row 1 col 2
+                                  static_cast<float>(z2 / (z2 - z1)),        // row 2 col 2
+                                  1.0f,                                      // row 3 col 2
+                                  0.0f,                                      // row 0 col 3
+                                  0.0f,                                      // row 1 col 3
+                                  static_cast<float>(-z1 * z2 / (z2 - z1)),  // row 2 col 3
+                                  0.0f                                       // row 3 col 3
     );
     m_ShakeStrength *= exp(-1e-9 * dt);
     // m_ProjectionMatrix = DirectX::XMMatrixPerspectiveFovLH(fov, aspectRatio, 0.1f, 100.0f);
