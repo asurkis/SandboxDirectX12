@@ -13,7 +13,7 @@ set(CLASSES
     CommandQueue
     DescriptorAllocator
     Device
-    DynamicDescriptorHeap
+    # DynamicDescriptorHeap
     Game
     MainWindow
     UploadBuffer

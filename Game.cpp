@@ -115,6 +115,7 @@ Game::Game(Application *application, int width, int height, bool vSync)
     Assert(device->CreateRootSignature(
         0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature)));
 
+    /*
     D3D12_RT_FORMAT_ARRAY rtvFormats = {};
     rtvFormats.NumRenderTargets      = 1;
     rtvFormats.RTFormats[0]          = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -142,6 +143,42 @@ Game::Game(Application *application, int width, int height, bool vSync)
     pssDesc.SizeInBytes                      = sizeof(pipelineStateStream);
     pssDesc.pPipelineStateSubobjectStream    = &pipelineStateStream;
     Assert(device->CreatePipelineState(&pssDesc, IID_PPV_ARGS(&m_PipelineState)));
+    */
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsDesc = {};
+
+    gpsDesc.pRootSignature = m_RootSignature.Get();
+    gpsDesc.VS             = CD3DX12_SHADER_BYTECODE(vertexShaderBlob.Get());
+    gpsDesc.PS             = CD3DX12_SHADER_BYTECODE(pixelShaderBlob.Get());
+
+    gpsDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_FILL_MODE_SOLID,
+                                                      D3D12_CULL_MODE_NONE,
+                                                      TRUE,
+                                                      0,
+                                                      0.0f,
+                                                      0.0f,
+                                                      TRUE,
+                                                      FALSE,
+                                                      FALSE,
+                                                      0,
+                                                      D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF);
+
+    gpsDesc.DepthStencilState.DepthEnable    = TRUE;
+    gpsDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+    gpsDesc.DepthStencilState.DepthFunc      = D3D12_COMPARISON_FUNC_GREATER;
+
+    gpsDesc.InputLayout.pInputElementDescs = inputLayout;
+    gpsDesc.InputLayout.NumElements        = _countof(inputLayout);
+
+    gpsDesc.SampleDesc.Count   = 1;
+    gpsDesc.SampleDesc.Quality = 0;
+
+    gpsDesc.DSVFormat             = DXGI_FORMAT_D32_FLOAT;
+    gpsDesc.NumRenderTargets      = 1;
+    gpsDesc.RTVFormats[0]         = DXGI_FORMAT_R8G8B8A8_UNORM;
+    gpsDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+    Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(&m_PipelineState)));
 
     UINT64 fenceValue = commandQueue.ExecuteCommandList(commandList);
     commandQueue.WaitForFenceValue(fenceValue);
@@ -192,7 +229,7 @@ void Game::ResizeDepthBuffer(int width, int height)
 
     D3D12_CLEAR_VALUE clearValue = {};
     clearValue.Format            = DXGI_FORMAT_D32_FLOAT;
-    clearValue.DepthStencil      = {1.0f, 0};
+    clearValue.DepthStencil      = {0.0f, 0};
 
     Assert(device->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -305,7 +342,7 @@ void Game::OnRender()
     TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     FLOAT clearColor[] = {0.4f, 0.6f, 0.9f, 1.0f};
     ClearRTV(commandList, rtv, clearColor);
-    ClearDepth(commandList, dsv, 1.0f);
+    ClearDepth(commandList, dsv, 0.0f);
 
     commandList->SetPipelineState(m_PipelineState.Get());
     commandList->SetGraphicsRootSignature(m_RootSignature.Get());
