@@ -43,6 +43,9 @@ Device::Device(ComPtr<IDXGIAdapter4> adapter)
             // Workarounds for debug layer issues on hybrid-graphics systems
             D3D12_MESSAGE_ID_EXECUTECOMMANDLISTS_WRONGSWAPCHAINBUFFERREFERENCE,
             D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE,
+
+            // For reversing Z in real time
+            D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
         };
 
         D3D12_INFO_QUEUE_FILTER NewFilter = {};
