@@ -32,13 +32,11 @@ class Application
     RECT m_WindowRect;
 
     // DirectX 12 Objects
-    PDevice              m_Device;
-    PSwapChain           m_SwapChain;
-    PGraphicsCommandList m_CommandList;
-    PCommandAllocator    m_CommandAllocators[BufferCount];
-    PDescriptorHeap      m_RTVDescriptorHeap;
-    UINT                 m_RTVDescriptorSize;
-    UINT                 m_CurrentBackBufferIndex;
+    PDevice         m_Device;
+    PSwapChain      m_SwapChain;
+    PDescriptorHeap m_RTVDescriptorHeap;
+    UINT            m_RTVDescriptorSize;
+    UINT            m_CurrentBackBufferIndex;
 
     // Synchronization objects
     UINT64 m_FrameFenceValues[BufferCount] = {};
@@ -291,10 +289,6 @@ class Application
         m_RTVDescriptorSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
         UpdateRenderTargetViews();
-
-        for (int i = 0; i < BufferCount; ++i)
-            m_CommandAllocators[i] = m_CommandQueueDirect->CreateCommandAllocator();
-        m_CommandList = m_CommandQueueDirect->CreateCommandList(m_CommandAllocators[m_CurrentBackBufferIndex]);
     }
 
     ~Application() { Flush(); }

@@ -19,6 +19,9 @@ class Game
     D3D12_VIEWPORT  m_Viewport;
     D3D12_RECT      m_ScissorRect;
 
+    PCommandAllocator    m_CommandAllocator;
+    PGraphicsCommandList m_CommandList;
+
     DirectX::XMMATRIX m_ModelMatrix;
     DirectX::XMMATRIX m_ViewMatrix;
     DirectX::XMMATRIX m_ProjectionMatrix;

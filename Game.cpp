@@ -303,20 +303,21 @@ void Game::OnUpdate()
                                   static_cast<float>((m_ZLess ? -1 : 1) * z1 * z2 / (z2 - z1)), // row 2 col 3
                                   0.0f                                                          // row 3 col 3
     );
-    m_ShakeStrength *= exp(-1e-9 * dt);
-    // m_ProjectionMatrix = DirectX::XMMatrixPerspectiveFovLH(fov, aspectRatio, 0.1f, 100.0f);
+    m_ShakeStrength *= exp(-dt);
 }
 
 void Game::OnRender()
 {
-    CommandQueue        &commandQueue           = Application::Get()->GetCommandQueueDirect();
-    PGraphicsCommandList commandList            = commandQueue.GetCommandList();
-    UINT                 currentBackBufferIndex = Application::Get()->CurrentBackBufferIndex();
-    PResource            backBuffer             = Application::Get()->CurrentBackBuffer();
-    auto                 rtv                    = Application::Get()->CurrentRTV();
-    auto                 dsv                    = m_DSVHeap->GetCPUDescriptorHandleForHeapStart();
+    CommandQueue        &commandQueue     = Application::Get()->GetCommandQueueDirect();
+    PGraphicsCommandList commandList      = commandQueue.GetCommandList();
+
+    UINT      currentBackBufferIndex = Application::Get()->CurrentBackBufferIndex();
+    PResource backBuffer             = Application::Get()->CurrentBackBuffer();
+    auto      rtv                    = Application::Get()->CurrentRTV();
+    auto      dsv                    = m_DSVHeap->GetCPUDescriptorHandleForHeapStart();
 
     TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
     FLOAT clearColor[] = {0.4f, 0.6f, 0.9f, 1.0f};
     commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
 
@@ -331,14 +332,14 @@ void Game::OnRender()
         commandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
     }
 
+    commandList->RSSetViewports(1, &m_Viewport);
+    commandList->RSSetScissorRects(1, &m_ScissorRect);
+    commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+
     commandList->SetGraphicsRootSignature(m_RootSignature.Get());
     commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
     commandList->IASetIndexBuffer(&m_IndexBufferView);
-
-    commandList->RSSetViewports(1, &m_Viewport);
-    commandList->RSSetScissorRects(1, &m_ScissorRect);
-    commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 
     XMMATRIX mvpMatrix = XMMatrixMultiply(m_ModelMatrix, m_ViewMatrix);
     mvpMatrix          = XMMatrixMultiply(mvpMatrix, m_ProjectionMatrix);
