@@ -4,8 +4,10 @@ set(CMAKE_CXX_STANDARD 17)
 add_subdirectory(DirectX-Headers)
 
 set(SHADER_FILES 
-    Vertex.hlsl 
-    Pixel.hlsl
+    Vertex1.hlsl 
+    Vertex2.hlsl 
+    Pixel1.hlsl
+    Pixel2.hlsl
 )
 
 set(CLASSES
@@ -17,8 +19,10 @@ set(CLASSES
 
 add_custom_target(Shaders SOURCES ${SHADER_FILES})
 
-set_source_files_properties( Vertex.hlsl PROPERTIES ShaderType vs VS_SHADER_TYPE Vertex )
-set_source_files_properties(  Pixel.hlsl PROPERTIES ShaderType ps VS_SHADER_TYPE  Pixel )
+set_source_files_properties( Vertex1.hlsl PROPERTIES ShaderType vs VS_SHADER_TYPE Vertex )
+set_source_files_properties( Vertex2.hlsl PROPERTIES ShaderType vs VS_SHADER_TYPE Vertex )
+set_source_files_properties(  Pixel1.hlsl PROPERTIES ShaderType ps VS_SHADER_TYPE  Pixel )
+set_source_files_properties(  Pixel2.hlsl PROPERTIES ShaderType ps VS_SHADER_TYPE  Pixel )
 
 foreach(FILE ${SHADER_FILES})
     set_source_files_properties(${FILE} PROPERTIES VS_SHADER_MODEL 6.0)

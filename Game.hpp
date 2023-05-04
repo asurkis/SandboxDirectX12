@@ -6,17 +6,21 @@ class Application;
 
 class Game
 {
-    PResource                m_VertexBuffer;
-    D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView;
-    PResource                m_IndexBuffer;
-    D3D12_INDEX_BUFFER_VIEW  m_IndexBufferView;
-    PResource                m_DepthBuffer;
+    PResource                m_VertexBuffer1;
+    D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView1;
+    PResource                m_IndexBuffer1;
+    D3D12_INDEX_BUFFER_VIEW  m_IndexBufferView1;
 
+    PResource m_ColorBuffer;
+    PResource m_DepthBuffer;
+
+    PDescriptorHeap m_RTVHeap;
     PDescriptorHeap m_DSVHeap;
-    PRootSignature  m_RootSignature;
+    PRootSignature  m_RootSignature1;
+    PRootSignature  m_RootSignature2;
     PPipelineState  m_PipelineStateLess;
     PPipelineState  m_PipelineStateGreater;
-    D3D12_VIEWPORT  m_Viewport;
+    PPipelineState  m_PipelineStatePost;
     D3D12_RECT      m_ScissorRect;
 
     PCommandAllocator    m_CommandAllocator;

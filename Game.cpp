@@ -39,7 +39,6 @@ static WORD g_Indices[] = {
 
 Game::Game(Application *application, int width, int height)
     : m_ScissorRect{0, 0, LONG_MAX, LONG_MAX},
-      m_Viewport{0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f},
       m_Width(width),
       m_Height(height)
 {
@@ -49,32 +48,35 @@ Game::Game(Application *application, int width, int height)
 
     PResource intermediateVertexBuffer;
     UpdateBufferResource(commandList,
-                         &m_VertexBuffer,
+                         &m_VertexBuffer1,
                          &intermediateVertexBuffer,
                          _countof(g_Vertices),
                          sizeof(VertexPosColor),
                          g_Vertices,
                          D3D12_RESOURCE_FLAG_NONE);
-    m_VertexBufferView.BufferLocation = m_VertexBuffer->GetGPUVirtualAddress();
-    m_VertexBufferView.SizeInBytes    = sizeof(g_Vertices);
-    m_VertexBufferView.StrideInBytes  = sizeof(VertexPosColor);
+    m_VertexBufferView1.BufferLocation = m_VertexBuffer1->GetGPUVirtualAddress();
+    m_VertexBufferView1.SizeInBytes    = sizeof(g_Vertices);
+    m_VertexBufferView1.StrideInBytes  = sizeof(VertexPosColor);
 
     PResource intermediateIndexBuffer;
     UpdateBufferResource(commandList,
-                         &m_IndexBuffer,
+                         &m_IndexBuffer1,
                          &intermediateIndexBuffer,
                          _countof(g_Indices),
                          sizeof(WORD),
                          g_Indices,
                          D3D12_RESOURCE_FLAG_NONE);
-    m_IndexBufferView.BufferLocation = m_IndexBuffer->GetGPUVirtualAddress();
-    m_IndexBufferView.SizeInBytes    = sizeof(g_Indices);
-    m_IndexBufferView.Format         = DXGI_FORMAT_R16_UINT;
+    m_IndexBufferView1.BufferLocation = m_IndexBuffer1->GetGPUVirtualAddress();
+    m_IndexBufferView1.SizeInBytes    = sizeof(g_Indices);
+    m_IndexBufferView1.Format         = DXGI_FORMAT_R16_UINT;
 
     D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
     heapDesc.NumDescriptors             = 1;
-    heapDesc.Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+    heapDesc.Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
     heapDesc.Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    Assert(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_RTVHeap)));
+
+    heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
     Assert(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_DSVHeap)));
 
     D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
@@ -85,19 +87,30 @@ Game::Game(Application *application, int width, int height)
     D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
                                      | D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS
                                      | D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS
-                                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
-                                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+                                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
-    CD3DX12_ROOT_PARAMETER rootParameters[1] = {};
+    CD3DX12_ROOT_PARAMETER rootParameters[2] = {};
     rootParameters[0].InitAsConstants(sizeof(XMMATRIX) / sizeof(DWORD), 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
 
-    CD3DX12_ROOT_SIGNATURE_DESC sigDesc(1, rootParameters, 0, nullptr, flags);
+    CD3DX12_ROOT_SIGNATURE_DESC sigDesc(
+        1, rootParameters, 0, nullptr, flags | D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS);
 
     PBlob rootSigBlob;
     PBlob errorBlob;
+
     Assert(D3D12SerializeRootSignature(&sigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootSigBlob, &errorBlob));
     Assert(device->CreateRootSignature(
-        0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature)));
+        0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature1)));
+
+    // Init texture view
+
+    rootParameters[0].InitAsShaderResourceView(0);
+    CD3DX12_STATIC_SAMPLER_DESC samplers[1] = {};
+    samplers[0].Init(0);
+    sigDesc.Init(1, rootParameters, 1, samplers, flags);
+    Assert(D3D12SerializeRootSignature(&sigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootSigBlob, &errorBlob));
+    Assert(device->CreateRootSignature(
+        0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature2)));
 
     ReloadShaders();
 
@@ -110,9 +123,6 @@ Game::Game(Application *application, int width, int height)
 void Game::ReloadShaders()
 {
     PDevice device = Application::Get()->GetDevice();
-    PBlob   vertexShaderBlob;
-    PBlob   pixelShaderBlob;
-    PBlob   errorBlob;
 
 #ifdef _DEBUG
     // Enable better shader debugging with the graphics debugging tools.
@@ -121,10 +131,18 @@ void Game::ReloadShaders()
     UINT compileFlags = 0;
 #endif
 
-    Assert(D3DReadFileToBlob(L"Vertex.cso", &vertexShaderBlob));
-    Assert(D3DReadFileToBlob(L"Pixel.cso", &pixelShaderBlob));
+    PBlob vertexShader1Blob;
+    PBlob vertexShader2Blob;
+    PBlob pixelShader1Blob;
+    PBlob pixelShader2Blob;
+    PBlob errorBlob;
 
-    D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
+    Assert(D3DReadFileToBlob(L"Vertex1.cso", &vertexShader1Blob));
+    Assert(D3DReadFileToBlob(L"Vertex2.cso", &vertexShader2Blob));
+    Assert(D3DReadFileToBlob(L"Pixel1.cso", &pixelShader1Blob));
+    Assert(D3DReadFileToBlob(L"Pixel2.cso", &pixelShader2Blob));
+
+    D3D12_INPUT_ELEMENT_DESC inputLayout1[] = {
         {"POSITION",
          0, DXGI_FORMAT_R32G32B32_FLOAT,
          0, D3D12_APPEND_ALIGNED_ELEMENT,
@@ -135,11 +153,18 @@ void Game::ReloadShaders()
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
 
+    D3D12_INPUT_ELEMENT_DESC inputLayout2[] = {
+        {"UV",
+         0, DXGI_FORMAT_R32G32_FLOAT,
+         0, D3D12_APPEND_ALIGNED_ELEMENT,
+         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+    };
+
     D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsDesc = {};
 
-    gpsDesc.pRootSignature    = m_RootSignature.Get();
-    gpsDesc.VS                = CD3DX12_SHADER_BYTECODE(vertexShaderBlob.Get());
-    gpsDesc.PS                = CD3DX12_SHADER_BYTECODE(pixelShaderBlob.Get());
+    gpsDesc.pRootSignature    = m_RootSignature1.Get();
+    gpsDesc.VS                = CD3DX12_SHADER_BYTECODE(vertexShader1Blob.Get());
+    gpsDesc.PS                = CD3DX12_SHADER_BYTECODE(pixelShader1Blob.Get());
     gpsDesc.SampleMask        = UINT_MAX;
     gpsDesc.BlendState        = CD3DX12_BLEND_DESC(CD3DX12_DEFAULT());
     gpsDesc.RasterizerState   = CD3DX12_RASTERIZER_DESC(CD3DX12_DEFAULT());
@@ -148,8 +173,8 @@ void Game::ReloadShaders()
     // Для сравнения с reversed Z
     gpsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
-    gpsDesc.InputLayout.pInputElementDescs = inputLayout;
-    gpsDesc.InputLayout.NumElements        = _countof(inputLayout);
+    gpsDesc.InputLayout.pInputElementDescs = inputLayout1;
+    gpsDesc.InputLayout.NumElements        = _countof(inputLayout1);
     gpsDesc.PrimitiveTopologyType          = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     gpsDesc.NumRenderTargets               = 1;
     gpsDesc.RTVFormats[0]                  = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -161,6 +186,24 @@ void Game::ReloadShaders()
 
     gpsDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
     Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(&m_PipelineStateGreater)));
+
+    gpsDesc                 = {};
+    gpsDesc.pRootSignature  = m_RootSignature2.Get();
+    gpsDesc.VS              = CD3DX12_SHADER_BYTECODE(vertexShader2Blob.Get());
+    gpsDesc.PS              = CD3DX12_SHADER_BYTECODE(pixelShader2Blob.Get());
+    gpsDesc.SampleMask      = UINT_MAX;
+    gpsDesc.BlendState      = CD3DX12_BLEND_DESC(CD3DX12_DEFAULT());
+    gpsDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(CD3DX12_DEFAULT());
+    // gpsDesc.DepthStencilState;
+    gpsDesc.InputLayout.pInputElementDescs = inputLayout2;
+    gpsDesc.InputLayout.NumElements        = _countof(inputLayout2);
+    gpsDesc.PrimitiveTopologyType          = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    gpsDesc.NumRenderTargets               = 1;
+    gpsDesc.RTVFormats[0]                  = DXGI_FORMAT_R8G8B8A8_UNORM;
+    // gpsDesc.DSVFormat;
+    gpsDesc.SampleDesc.Count   = 1;
+    gpsDesc.SampleDesc.Quality = 0;
+    Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(&m_PipelineStatePost)));
 }
 
 void Game::UpdateBufferResource(PGraphicsCommandList commandList,
@@ -176,7 +219,7 @@ void Game::UpdateBufferResource(PGraphicsCommandList commandList,
     Assert(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
                                            D3D12_HEAP_FLAG_NONE,
                                            &CD3DX12_RESOURCE_DESC::Buffer(bufferSize, flags),
-                                           D3D12_RESOURCE_STATE_COPY_DEST,
+                                           D3D12_RESOURCE_STATE_COMMON,
                                            nullptr,
                                            IID_PPV_ARGS(destinationResource)));
     if (!bufferData)
@@ -204,9 +247,25 @@ void Game::ResizeDepthBuffer(int width, int height)
     height         = (std::max)(1, height);
     PDevice device = Application::Get()->GetDevice();
 
-    D3D12_CLEAR_VALUE clearValue = {};
-    clearValue.Format            = DXGI_FORMAT_D32_FLOAT;
-    clearValue.DepthStencil      = {1.0f, 0};
+    D3D12_CLEAR_VALUE colorClearValue = {};
+    colorClearValue.Format            = DXGI_FORMAT_R16G16B16A16_UNORM;
+    colorClearValue.Color[0]          = 1.0f;
+    colorClearValue.Color[1]          = 1.0f;
+    colorClearValue.Color[2]          = 1.0f;
+    colorClearValue.Color[3]          = 1.0f;
+
+    D3D12_CLEAR_VALUE depthClearValue = {};
+    depthClearValue.Format            = DXGI_FORMAT_D32_FLOAT;
+    depthClearValue.DepthStencil      = {1.0f, 0};
+
+    Assert(device->CreateCommittedResource(
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+        D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
+        &CD3DX12_RESOURCE_DESC::Tex2D(
+            DXGI_FORMAT_R16G16B16A16_UNORM, width, height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET),
+        D3D12_RESOURCE_STATE_RENDER_TARGET,
+        &colorClearValue,
+        IID_PPV_ARGS(&m_ColorBuffer)));
 
     Assert(device->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -214,23 +273,28 @@ void Game::ResizeDepthBuffer(int width, int height)
         &CD3DX12_RESOURCE_DESC::Tex2D(
             DXGI_FORMAT_D32_FLOAT, width, height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
-        &clearValue,
+        &depthClearValue,
         IID_PPV_ARGS(&m_DepthBuffer)));
 
-    D3D12_DEPTH_STENCIL_VIEW_DESC dsv = {};
-    dsv.Format                        = DXGI_FORMAT_D32_FLOAT;
-    dsv.ViewDimension                 = D3D12_DSV_DIMENSION_TEXTURE2D;
-    dsv.Texture2D.MipSlice            = 0;
-    dsv.Flags                         = D3D12_DSV_FLAG_NONE;
+    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+    rtvDesc.Format                        = DXGI_FORMAT_R16G16B16A16_UNORM;
+    rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
+    rtvDesc.Texture2D.MipSlice            = 1;
 
-    device->CreateDepthStencilView(m_DepthBuffer.Get(), &dsv, m_DSVHeap->GetCPUDescriptorHandleForHeapStart());
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+    dsvDesc.Format                        = DXGI_FORMAT_D32_FLOAT;
+    dsvDesc.ViewDimension                 = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsvDesc.Texture2D.MipSlice            = 0;
+    dsvDesc.Flags                         = D3D12_DSV_FLAG_NONE;
+
+    // device->CreateRenderTargetView(m_ColorBuffer.Get(), &rtvDesc, m_RTVHeap->GetCPUDescriptorHandleForHeapStart());
+    device->CreateDepthStencilView(m_DepthBuffer.Get(), &dsvDesc, m_DSVHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
 void Game::OnResize(int width, int height)
 {
     if (width == m_Width && height == m_Height)
         return;
-    m_Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
     ResizeDepthBuffer(width, height);
     m_Width  = width;
     m_Height = height;
@@ -308,18 +372,20 @@ void Game::OnUpdate()
 
 void Game::OnRender()
 {
-    CommandQueue        &commandQueue     = Application::Get()->GetCommandQueueDirect();
-    PGraphicsCommandList commandList      = commandQueue.GetCommandList();
+    CommandQueue        &commandQueue = Application::Get()->GetCommandQueueDirect();
+    PGraphicsCommandList commandList  = commandQueue.GetCommandList();
 
     UINT      currentBackBufferIndex = Application::Get()->CurrentBackBufferIndex();
-    PResource backBuffer             = Application::Get()->CurrentBackBuffer();
-    auto      rtv                    = Application::Get()->CurrentRTV();
+    PResource outBuffer              = Application::Get()->CurrentBackBuffer();
+    PResource backBuffer             = m_ColorBuffer;
+    auto      outRtv                 = Application::Get()->CurrentRTV();
+    auto      rtv                    = m_RTVHeap->GetCPUDescriptorHandleForHeapStart();
     auto      dsv                    = m_DSVHeap->GetCPUDescriptorHandleForHeapStart();
 
     TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     FLOAT clearColor[] = {0.4f, 0.6f, 0.9f, 1.0f};
-    commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
+    commandList->ClearRenderTargetView(outRtv, clearColor, 0, nullptr);
 
     if (m_ZLess)
     {
@@ -332,14 +398,15 @@ void Game::OnRender()
         commandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
     }
 
-    commandList->RSSetViewports(1, &m_Viewport);
+    CD3DX12_VIEWPORT viewport(0.0f, 0.0f, static_cast<float>(m_Width), static_cast<float>(m_Height));
+    commandList->RSSetViewports(1, &viewport);
     commandList->RSSetScissorRects(1, &m_ScissorRect);
-    commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+    commandList->OMSetRenderTargets(1, &outRtv, FALSE, &dsv);
 
-    commandList->SetGraphicsRootSignature(m_RootSignature.Get());
+    commandList->SetGraphicsRootSignature(m_RootSignature1.Get());
     commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
-    commandList->IASetIndexBuffer(&m_IndexBufferView);
+    commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView1);
+    commandList->IASetIndexBuffer(&m_IndexBufferView1);
 
     XMMATRIX mvpMatrix = XMMatrixMultiply(m_ModelMatrix, m_ViewMatrix);
     mvpMatrix          = XMMatrixMultiply(mvpMatrix, m_ProjectionMatrix);
