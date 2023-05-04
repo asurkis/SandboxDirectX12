@@ -11,6 +11,9 @@ class Game
     PResource                m_IndexBuffer1;
     D3D12_INDEX_BUFFER_VIEW  m_IndexBufferView1;
 
+    PResource                m_VertexBuffer2;
+    D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView2;
+
     PResource m_ColorBuffer;
     PResource m_DepthBuffer;
 

@@ -153,6 +153,7 @@ class Application
         }
 
         ComPtr<IDXGIAdapter1> adapter1;
+        ComPtr<IDXGIAdapter4> adapter4;
         SIZE_T                maxDedicatedVram = 0;
         for (UINT i = 0; factory->EnumAdapters1(i, &adapter1) != DXGI_ERROR_NOT_FOUND; ++i)
         {
@@ -165,9 +166,10 @@ class Application
             if (desc1.DedicatedVideoMemory < maxDedicatedVram)
                 continue;
             maxDedicatedVram = desc1.DedicatedVideoMemory;
+            Assert(adapter1.As(&adapter4));
         }
 
-        D3D12CreateDevice(adapter1.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&result));
+        D3D12CreateDevice(adapter4.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&result));
         return result;
     }
 

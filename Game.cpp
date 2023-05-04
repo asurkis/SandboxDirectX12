@@ -23,6 +23,15 @@ static VertexPosColor g_Vertices[] = {
     {XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f)},
 };
 
+static XMFLOAT2 g_FullScreen[] = {
+    XMFLOAT2(0.0f, 0.0f),
+    XMFLOAT2(0.0f, 1.0f),
+    XMFLOAT2(1.0f, 1.0f),
+    XMFLOAT2(1.0f, 1.0f),
+    XMFLOAT2(1.0f, 0.0f),
+    XMFLOAT2(0.0f, 0.0f),
+};
+
 static WORD g_Indices[] = {
     0, 1, 2, 2, 1, 3,
 
@@ -46,10 +55,10 @@ Game::Game(Application *application, int width, int height)
     CommandQueue        &commandQueue = Application::Get()->GetCommandQueueCopy();
     PGraphicsCommandList commandList  = commandQueue.GetCommandList();
 
-    PResource intermediateVertexBuffer;
+    PResource intermediateVertexBuffer1;
     UpdateBufferResource(commandList,
                          &m_VertexBuffer1,
-                         &intermediateVertexBuffer,
+                         &intermediateVertexBuffer1,
                          _countof(g_Vertices),
                          sizeof(VertexPosColor),
                          g_Vertices,
@@ -58,10 +67,22 @@ Game::Game(Application *application, int width, int height)
     m_VertexBufferView1.SizeInBytes    = sizeof(g_Vertices);
     m_VertexBufferView1.StrideInBytes  = sizeof(VertexPosColor);
 
-    PResource intermediateIndexBuffer;
+    PResource intermediateVertexBuffer2;
+    UpdateBufferResource(commandList,
+                         &m_VertexBuffer2,
+                         &intermediateVertexBuffer2,
+                         _countof(g_FullScreen),
+                         sizeof(VertexPosColor),
+                         g_FullScreen,
+                         D3D12_RESOURCE_FLAG_NONE);
+    m_VertexBufferView2.BufferLocation = m_VertexBuffer2->GetGPUVirtualAddress();
+    m_VertexBufferView2.SizeInBytes    = sizeof(g_FullScreen);
+    m_VertexBufferView2.StrideInBytes  = sizeof(XMFLOAT2);
+
+    PResource intermediateIndexBuffer1;
     UpdateBufferResource(commandList,
                          &m_IndexBuffer1,
-                         &intermediateIndexBuffer,
+                         &intermediateIndexBuffer1,
                          _countof(g_Indices),
                          sizeof(WORD),
                          g_Indices,
@@ -104,10 +125,11 @@ Game::Game(Application *application, int width, int height)
 
     // Init texture view
 
-    rootParameters[0].InitAsShaderResourceView(0);
+    rootParameters[0].InitAsConstants(2, 0);
+    rootParameters[1].InitAsShaderResourceView(0);
     CD3DX12_STATIC_SAMPLER_DESC samplers[1] = {};
     samplers[0].Init(0);
-    sigDesc.Init(1, rootParameters, 1, samplers, flags);
+    sigDesc.Init(2, rootParameters, 1, samplers, flags);
     Assert(D3D12SerializeRootSignature(&sigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootSigBlob, &errorBlob));
     Assert(device->CreateRootSignature(
         0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature2)));
@@ -263,7 +285,7 @@ void Game::ResizeDepthBuffer(int width, int height)
         D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
         &CD3DX12_RESOURCE_DESC::Tex2D(
             DXGI_FORMAT_R16G16B16A16_UNORM, width, height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET),
-        D3D12_RESOURCE_STATE_RENDER_TARGET,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
         &colorClearValue,
         IID_PPV_ARGS(&m_ColorBuffer)));
 
@@ -279,7 +301,7 @@ void Game::ResizeDepthBuffer(int width, int height)
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
     rtvDesc.Format                        = DXGI_FORMAT_R16G16B16A16_UNORM;
     rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
-    rtvDesc.Texture2D.MipSlice            = 1;
+    rtvDesc.Texture2D.MipSlice            = 0;
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.Format                        = DXGI_FORMAT_D32_FLOAT;
@@ -287,7 +309,7 @@ void Game::ResizeDepthBuffer(int width, int height)
     dsvDesc.Texture2D.MipSlice            = 0;
     dsvDesc.Flags                         = D3D12_DSV_FLAG_NONE;
 
-    // device->CreateRenderTargetView(m_ColorBuffer.Get(), &rtvDesc, m_RTVHeap->GetCPUDescriptorHandleForHeapStart());
+    device->CreateRenderTargetView(m_ColorBuffer.Get(), &rtvDesc, m_RTVHeap->GetCPUDescriptorHandleForHeapStart());
     device->CreateDepthStencilView(m_DepthBuffer.Get(), &dsvDesc, m_DSVHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
@@ -376,15 +398,17 @@ void Game::OnRender()
     PGraphicsCommandList commandList  = commandQueue.GetCommandList();
 
     UINT      currentBackBufferIndex = Application::Get()->CurrentBackBufferIndex();
-    PResource outBuffer              = Application::Get()->CurrentBackBuffer();
-    PResource backBuffer             = m_ColorBuffer;
+    PResource backBuffer             = Application::Get()->CurrentBackBuffer();
     auto      outRtv                 = Application::Get()->CurrentRTV();
     auto      rtv                    = m_RTVHeap->GetCPUDescriptorHandleForHeapStart();
     auto      dsv                    = m_DSVHeap->GetCPUDescriptorHandleForHeapStart();
 
+    // TransitionResource(
+    //     commandList, m_ColorBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
     TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-    FLOAT clearColor[] = {0.4f, 0.6f, 0.9f, 1.0f};
+    FLOAT clearColor[] = {1.0f, 0.75f, 0.5f, 1.0f};
+    commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
     commandList->ClearRenderTargetView(outRtv, clearColor, 0, nullptr);
 
     if (m_ZLess)
