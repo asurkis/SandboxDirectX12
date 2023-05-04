@@ -37,14 +37,14 @@ static WORD g_Indices[] = {
     2, 3, 6, 6, 3, 7,
 };
 
-Game::Game(Application *application, int width, int height, bool vSync)
+Game::Game(Application *application, int width, int height)
     : m_ScissorRect{0, 0, LONG_MAX, LONG_MAX},
       m_Viewport{0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f},
       m_Width(width),
       m_Height(height)
 {
     PDevice              device       = Application::Get()->GetDevice();
-    CommandQueue        &commandQueue = Application::Get()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+    CommandQueue        &commandQueue = Application::Get()->GetCommandQueueCopy();
     PGraphicsCommandList commandList  = commandQueue.GetCommandList();
 
     PResource intermediateVertexBuffer;
@@ -77,8 +77,50 @@ Game::Game(Application *application, int width, int height, bool vSync)
     heapDesc.Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     Assert(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_DSVHeap)));
 
-    PBlob vertexShaderBlob;
-    PBlob pixelShaderBlob;
+    D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+    featureData.HighestVersion                    = D3D_ROOT_SIGNATURE_VERSION_1_1;
+    if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+        featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+
+    D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+                                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS
+                                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS
+                                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
+                                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+
+    CD3DX12_ROOT_PARAMETER rootParameters[1] = {};
+    rootParameters[0].InitAsConstants(sizeof(XMMATRIX) / sizeof(DWORD), 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+
+    CD3DX12_ROOT_SIGNATURE_DESC sigDesc(1, rootParameters, 0, nullptr, flags);
+
+    PBlob rootSigBlob;
+    PBlob errorBlob;
+    Assert(D3D12SerializeRootSignature(&sigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootSigBlob, &errorBlob));
+    Assert(device->CreateRootSignature(
+        0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature)));
+
+    ReloadShaders();
+
+    UINT64 fenceValue = commandQueue.ExecuteCommandList(commandList);
+    commandQueue.WaitForFenceValue(fenceValue);
+    m_ContentLoaded = true;
+    ResizeDepthBuffer(width, height);
+}
+
+void Game::ReloadShaders()
+{
+    PDevice device = Application::Get()->GetDevice();
+    PBlob   vertexShaderBlob;
+    PBlob   pixelShaderBlob;
+    PBlob   errorBlob;
+
+#ifdef _DEBUG
+    // Enable better shader debugging with the graphics debugging tools.
+    UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+    UINT compileFlags = 0;
+#endif
+
     Assert(D3DReadFileToBlob(L"Vertex.cso", &vertexShaderBlob));
     Assert(D3DReadFileToBlob(L"Pixel.cso", &pixelShaderBlob));
 
@@ -93,67 +135,12 @@ Game::Game(Application *application, int width, int height, bool vSync)
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
 
-    D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
-    featureData.HighestVersion                    = D3D_ROOT_SIGNATURE_VERSION_1_1;
-    if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
-        featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
-
-    D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
-                                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS
-                                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS
-                                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
-                                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
-    CD3DX12_ROOT_PARAMETER1 rootParameters[1] = {};
-    rootParameters[0].InitAsConstants(sizeof(XMMATRIX) / sizeof(DWORD), 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-
-    CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc = {};
-    sigDesc.Init_1_1(1, rootParameters, 0, nullptr, flags);
-
-    PBlob rootSigBlob;
-    PBlob errorBlob;
-    Assert(D3DX12SerializeVersionedRootSignature(&sigDesc, featureData.HighestVersion, &rootSigBlob, &errorBlob));
-    Assert(device->CreateRootSignature(
-        0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature)));
-
-    /*
-    D3D12_RT_FORMAT_ARRAY rtvFormats = {};
-    rtvFormats.NumRenderTargets      = 1;
-    rtvFormats.RTFormats[0]          = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-    struct PipelineStateStream
-    {
-        CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE        pRootSignature;
-        CD3DX12_PIPELINE_STATE_STREAM_INPUT_LAYOUT          InputLayout;
-        CD3DX12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY    PrimitiveTopologyType;
-        CD3DX12_PIPELINE_STATE_STREAM_VS                    VS;
-        CD3DX12_PIPELINE_STATE_STREAM_PS                    PS;
-        CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT  DSVFormat;
-        CD3DX12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS RTVFormats;
-    } pipelineStateStream;
-
-    pipelineStateStream.pRootSignature        = m_RootSignature.Get();
-    pipelineStateStream.InputLayout           = {inputLayout, _countof(inputLayout)};
-    pipelineStateStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    pipelineStateStream.VS                    = CD3DX12_SHADER_BYTECODE(vertexShaderBlob.Get());
-    pipelineStateStream.PS                    = CD3DX12_SHADER_BYTECODE(pixelShaderBlob.Get());
-    pipelineStateStream.DSVFormat             = DXGI_FORMAT_D32_FLOAT;
-    pipelineStateStream.RTVFormats            = rtvFormats;
-
-    D3D12_PIPELINE_STATE_STREAM_DESC pssDesc = {};
-    pssDesc.SizeInBytes                      = sizeof(pipelineStateStream);
-    pssDesc.pPipelineStateSubobjectStream    = &pipelineStateStream;
-    Assert(device->CreatePipelineState(&pssDesc, IID_PPV_ARGS(&m_PipelineState)));
-    // */
-
     D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsDesc = {};
 
-    gpsDesc.pRootSignature = m_RootSignature.Get();
-
-    gpsDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShaderBlob.Get());
-    gpsDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShaderBlob.Get());
-
-    gpsDesc.SampleMask = UINT_MAX;
-
+    gpsDesc.pRootSignature    = m_RootSignature.Get();
+    gpsDesc.VS                = CD3DX12_SHADER_BYTECODE(vertexShaderBlob.Get());
+    gpsDesc.PS                = CD3DX12_SHADER_BYTECODE(pixelShaderBlob.Get());
+    gpsDesc.SampleMask        = UINT_MAX;
     gpsDesc.BlendState        = CD3DX12_BLEND_DESC(CD3DX12_DEFAULT());
     gpsDesc.RasterizerState   = CD3DX12_RASTERIZER_DESC(CD3DX12_DEFAULT());
     gpsDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(CD3DX12_DEFAULT());
@@ -163,27 +150,17 @@ Game::Game(Application *application, int width, int height, bool vSync)
 
     gpsDesc.InputLayout.pInputElementDescs = inputLayout;
     gpsDesc.InputLayout.NumElements        = _countof(inputLayout);
-
-    gpsDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-
-    gpsDesc.NumRenderTargets = 1;
-    gpsDesc.RTVFormats[0]    = DXGI_FORMAT_R8G8B8A8_UNORM;
-    gpsDesc.DSVFormat        = DXGI_FORMAT_D32_FLOAT;
-
-    gpsDesc.SampleDesc.Count   = 1;
-    gpsDesc.SampleDesc.Quality = 0;
+    gpsDesc.PrimitiveTopologyType          = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    gpsDesc.NumRenderTargets               = 1;
+    gpsDesc.RTVFormats[0]                  = DXGI_FORMAT_R8G8B8A8_UNORM;
+    gpsDesc.DSVFormat                      = DXGI_FORMAT_D32_FLOAT;
+    gpsDesc.SampleDesc.Count               = 1;
+    gpsDesc.SampleDesc.Quality             = 0;
 
     Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(&m_PipelineStateLess)));
 
     gpsDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
     Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(&m_PipelineStateGreater)));
-
-    // */
-
-    UINT64 fenceValue = commandQueue.ExecuteCommandList(commandList);
-    commandQueue.WaitForFenceValue(fenceValue);
-    m_ContentLoaded = true;
-    ResizeDepthBuffer(width, height);
 }
 
 void Game::UpdateBufferResource(PGraphicsCommandList commandList,
@@ -332,7 +309,7 @@ void Game::OnUpdate()
 
 void Game::OnRender()
 {
-    CommandQueue        &commandQueue           = Application::Get()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+    CommandQueue        &commandQueue           = Application::Get()->GetCommandQueueDirect();
     PGraphicsCommandList commandList            = commandQueue.GetCommandList();
     UINT                 currentBackBufferIndex = Application::Get()->CurrentBackBufferIndex();
     PResource            backBuffer             = Application::Get()->CurrentBackBuffer();

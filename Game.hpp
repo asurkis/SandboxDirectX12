@@ -31,7 +31,10 @@ class Game
     bool m_ContentLoaded = false;
 
   public:
-    Game(Application *application, int width, int height, bool vSync);
+    Game(Application *application, int width, int height);
+
+    void ReloadShaders();
+
     void UpdateBufferResource(PGraphicsCommandList commandList,
                               ID3D12Resource     **destinationResource,
                               ID3D12Resource     **intermediateResource,

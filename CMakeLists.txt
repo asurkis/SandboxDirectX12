@@ -22,6 +22,7 @@ set_source_files_properties(  Pixel.hlsl PROPERTIES ShaderType ps VS_SHADER_TYPE
 
 foreach(FILE ${SHADER_FILES})
     set_source_files_properties(${FILE} PROPERTIES VS_SHADER_MODEL 6.0)
+    configure_file("${FILE}" "${CMAKE_CURRENT_BINARY_DIR}/${FILE}" COPYONLY)
     get_filename_component(FILE_WE "${FILE}" NAME_WE)
     get_source_file_property(SHADER_TYPE "${FILE}" ShaderType)
     add_custom_command(

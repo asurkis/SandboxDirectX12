@@ -64,15 +64,9 @@ class CommandQueue
         return list;
     }
 
-    PSwapChain CreateSwapChain(HWND hWnd, bool tearingSupport, UINT width, UINT height, UINT bufferCount)
+    PSwapChain CreateSwapChain(
+        PFactory factory, HWND hWnd, bool tearingSupport, UINT width, UINT height, UINT bufferCount)
     {
-        UINT createFactoryFlags = 0;
-#ifdef _DEBUG
-        createFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-#endif
-        ComPtr<IDXGIFactory4> factory;
-        Assert(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&factory)));
-
         DXGI_SWAP_CHAIN_DESC1 desc = {};
         desc.Width                 = width;
         desc.Height                = height;

@@ -41,7 +41,7 @@ class Application
     UINT                 m_CurrentBackBufferIndex;
 
     // Synchronization objects
-    uint64_t m_FrameFenceValues[BufferCount] = {};
+    UINT64 m_FrameFenceValues[BufferCount] = {};
 
     // By default, enable V-Sync.
     // Can be toggled with the V key.
@@ -96,6 +96,8 @@ class Application
             case '0': g_Instance->m_Game->m_FovStep = 0; break;
             case VK_SPACE: g_Instance->m_Game->m_ShakeStrength = 1.0; break;
             case 'Z': g_Instance->m_Game->m_ZLess ^= true; break;
+
+            case 'R': g_Instance->m_Game->ReloadShaders(); break;
             }
             break;
         }
@@ -129,15 +131,19 @@ class Application
 #endif
     }
 
-    PDevice CreateDevice(bool useWarp)
+    static PFactory CreateFactory()
     {
         UINT createFactoryFlags = 0;
 #ifdef _DEBUG
         createFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 #endif
-        ComPtr<IDXGIFactory4> factory;
-        Assert(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&factory)));
+        PFactory result;
+        Assert(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&result)));
+        return result;
+    }
 
+    PDevice CreateDevice(PFactory factory, bool useWarp)
+    {
         PDevice result;
 
         if (useWarp)
@@ -179,17 +185,16 @@ class Application
         return allowTearing;
     }
 
-    void UpdateRenderTargetViews(PDevice device, PSwapChain swapChain, PDescriptorHeap heap)
+    void UpdateRenderTargetViews()
     {
-        UINT rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(heap->GetCPUDescriptorHandleForHeapStart());
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
         for (UINT i = 0; i < BufferCount; ++i)
         {
             PResource backBuffer;
-            Assert(swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
-            device->CreateRenderTargetView(backBuffer.Get(), nullptr, rtvHandle);
+            Assert(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
+            m_Device->CreateRenderTargetView(backBuffer.Get(), nullptr, rtvHandle);
             m_BackBuffers[i] = backBuffer;
-            rtvHandle.Offset(rtvDescriptorSize);
+            rtvHandle.Offset(m_RTVDescriptorSize);
         }
     }
 
@@ -211,7 +216,7 @@ class Application
         Assert(
             m_SwapChain->ResizeBuffers(BufferCount, m_ClientWidth, m_ClientHeight, desc.BufferDesc.Format, desc.Flags));
         m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
-        UpdateRenderTargetViews(m_Device, m_SwapChain, m_RTVDescriptorHeap);
+        UpdateRenderTargetViews();
 
         m_Game->OnResize(width, height);
     }
@@ -270,12 +275,13 @@ class Application
 
         GetWindowRect(m_Window.Get(), &m_WindowRect);
 
-        m_Device = CreateDevice(m_UseWarp);
+        PFactory factory = CreateFactory();
+        m_Device         = CreateDevice(factory, m_UseWarp);
         m_CommandQueueDirect.emplace(m_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
         m_CommandQueueCompute.emplace(m_Device, D3D12_COMMAND_LIST_TYPE_COMPUTE);
         m_CommandQueueCopy.emplace(m_Device, D3D12_COMMAND_LIST_TYPE_COPY);
         m_SwapChain = m_CommandQueueDirect->CreateSwapChain(
-            m_Window.Get(), m_TearingSupported, m_ClientWidth, m_ClientHeight, BufferCount);
+            factory, m_Window.Get(), m_TearingSupported, m_ClientWidth, m_ClientHeight, BufferCount);
         m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
 
         D3D12_DESCRIPTOR_HEAP_DESC dhDesc = {};
@@ -284,7 +290,7 @@ class Application
         Assert(m_Device->CreateDescriptorHeap(&dhDesc, IID_PPV_ARGS(&m_RTVDescriptorHeap)));
         m_RTVDescriptorSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-        UpdateRenderTargetViews(m_Device, m_SwapChain, m_RTVDescriptorHeap);
+        UpdateRenderTargetViews();
 
         for (int i = 0; i < BufferCount; ++i)
             m_CommandAllocators[i] = m_CommandQueueDirect->CreateCommandAllocator();
@@ -303,7 +309,7 @@ class Application
     int Run(int nShowCmd)
     {
         g_Instance = this;
-        m_Game.emplace(this, m_ClientWidth, m_ClientHeight, m_VSync);
+        m_Game.emplace(this, m_ClientWidth, m_ClientHeight);
         ShowWindow(m_Window.Get(), nShowCmd);
 
         MSG msg;
@@ -320,16 +326,9 @@ class Application
 
     PDevice GetDevice() { return m_Device; }
 
-    CommandQueue &GetCommandQueue(D3D12_COMMAND_LIST_TYPE type)
-    {
-        switch (type)
-        {
-        case D3D12_COMMAND_LIST_TYPE_DIRECT: return *m_CommandQueueDirect;
-        case D3D12_COMMAND_LIST_TYPE_COMPUTE: return *m_CommandQueueCompute;
-        case D3D12_COMMAND_LIST_TYPE_COPY: return *m_CommandQueueCopy;
-        default: throw std::exception("No such queue");
-        }
-    }
+    CommandQueue &GetCommandQueueDirect() noexcept { return *m_CommandQueueDirect; }
+    CommandQueue &GetCommandQueueCompute() noexcept { return *m_CommandQueueCompute; }
+    CommandQueue &GetCommandQueueCopy() noexcept { return *m_CommandQueueCopy; }
 
     constexpr UINT CurrentBackBufferIndex() const { return m_CurrentBackBufferIndex; }
     PResource      CurrentBackBuffer() const { return m_BackBuffers[m_CurrentBackBufferIndex]; }

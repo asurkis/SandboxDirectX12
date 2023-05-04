@@ -34,6 +34,7 @@ using PCommandAllocator    = ComPtr<ID3D12CommandAllocator>;
 using PCommandQueue        = ComPtr<ID3D12CommandQueue>;
 using PDescriptorHeap      = ComPtr<ID3D12DescriptorHeap>;
 using PDevice              = ComPtr<ID3D12Device2>;
+using PFactory             = ComPtr<IDXGIFactory4>;
 using PFence               = ComPtr<ID3D12Fence>;
 using PGraphicsCommandList = ComPtr<ID3D12GraphicsCommandList>;
 using PPipelineState       = ComPtr<ID3D12PipelineState>;
