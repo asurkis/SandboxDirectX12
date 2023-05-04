@@ -3,7 +3,6 @@
 #include "pch.hpp"
 
 #include "CommandQueue.hpp"
-#include "Device.hpp"
 #include "Game.hpp"
 #include "MainWindow.hpp"
 #include "Utils.hpp"
@@ -33,6 +32,7 @@ class Application
     RECT m_WindowRect;
 
     // DirectX 12 Objects
+    PDevice              m_Device;
     PSwapChain           m_SwapChain;
     PGraphicsCommandList m_CommandList;
     PCommandAllocator    m_CommandAllocators[BufferCount];
@@ -51,7 +51,6 @@ class Application
     // Can be toggled with the Alt+Enter or F11
     bool m_Fullscreen = false;
 
-    std::optional<Device>       m_Device;
     std::optional<CommandQueue> m_CommandQueueDirect;
     std::optional<CommandQueue> m_CommandQueueCompute;
     std::optional<CommandQueue> m_CommandQueueCopy;
@@ -130,7 +129,7 @@ class Application
 #endif
     }
 
-    ComPtr<IDXGIAdapter4> GetAdapter(bool useWarp)
+    PDevice CreateDevice(bool useWarp)
     {
         UINT createFactoryFlags = 0;
 #ifdef _DEBUG
@@ -138,15 +137,19 @@ class Application
 #endif
         ComPtr<IDXGIFactory4> factory;
         Assert(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&factory)));
-        ComPtr<IDXGIAdapter1> adapter1;
-        ComPtr<IDXGIAdapter4> adapter4;
+
+        PDevice result;
+
         if (useWarp)
         {
-            Assert(factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter1)));
-            Assert(adapter1.As(&adapter4));
-            return adapter4;
+            ComPtr<IDXGIAdapter> adapter;
+            Assert(factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter)));
+            D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&result));
+            return result;
         }
-        SIZE_T maxDedicatedVram = 0;
+
+        ComPtr<IDXGIAdapter1> adapter1;
+        SIZE_T                maxDedicatedVram = 0;
         for (UINT i = 0; factory->EnumAdapters1(i, &adapter1) != DXGI_ERROR_NOT_FOUND; ++i)
         {
             DXGI_ADAPTER_DESC1 desc1;
@@ -158,9 +161,10 @@ class Application
             if (desc1.DedicatedVideoMemory < maxDedicatedVram)
                 continue;
             maxDedicatedVram = desc1.DedicatedVideoMemory;
-            Assert(adapter1.As(&adapter4));
         }
-        return adapter4;
+
+        D3D12CreateDevice(adapter1.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&result));
+        return result;
     }
 
     bool CheckTearingSupport()
@@ -207,7 +211,7 @@ class Application
         Assert(
             m_SwapChain->ResizeBuffers(BufferCount, m_ClientWidth, m_ClientHeight, desc.BufferDesc.Format, desc.Flags));
         m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
-        UpdateRenderTargetViews(m_Device->Get(), m_SwapChain, m_RTVDescriptorHeap);
+        UpdateRenderTargetViews(m_Device, m_SwapChain, m_RTVDescriptorHeap);
 
         m_Game->OnResize(width, height);
     }
@@ -266,19 +270,21 @@ class Application
 
         GetWindowRect(m_Window.Get(), &m_WindowRect);
 
-        ComPtr<IDXGIAdapter4> adapter4 = GetAdapter(m_UseWarp);
-
-        m_Device.emplace(adapter4);
-        m_CommandQueueDirect.emplace(m_Device->Get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
-        m_CommandQueueCompute.emplace(m_Device->Get(), D3D12_COMMAND_LIST_TYPE_COMPUTE);
-        m_CommandQueueCopy.emplace(m_Device->Get(), D3D12_COMMAND_LIST_TYPE_COPY);
+        m_Device = CreateDevice(m_UseWarp);
+        m_CommandQueueDirect.emplace(m_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+        m_CommandQueueCompute.emplace(m_Device, D3D12_COMMAND_LIST_TYPE_COMPUTE);
+        m_CommandQueueCopy.emplace(m_Device, D3D12_COMMAND_LIST_TYPE_COPY);
         m_SwapChain = m_CommandQueueDirect->CreateSwapChain(
             m_Window.Get(), m_TearingSupported, m_ClientWidth, m_ClientHeight, BufferCount);
         m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
-        m_RTVDescriptorHeap      = m_Device->CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, BufferCount);
-        m_RTVDescriptorSize      = m_Device->Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-        UpdateRenderTargetViews(m_Device->Get(), m_SwapChain, m_RTVDescriptorHeap);
+        D3D12_DESCRIPTOR_HEAP_DESC dhDesc = {};
+        dhDesc.NumDescriptors             = BufferCount;
+        dhDesc.Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+        Assert(m_Device->CreateDescriptorHeap(&dhDesc, IID_PPV_ARGS(&m_RTVDescriptorHeap)));
+        m_RTVDescriptorSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+        UpdateRenderTargetViews(m_Device, m_SwapChain, m_RTVDescriptorHeap);
 
         for (int i = 0; i < BufferCount; ++i)
             m_CommandAllocators[i] = m_CommandQueueDirect->CreateCommandAllocator();
@@ -312,7 +318,7 @@ class Application
         return static_cast<int>(msg.wParam);
     }
 
-    PDevice GetDevice() { return m_Device->Get(); }
+    PDevice GetDevice() { return m_Device; }
 
     CommandQueue &GetCommandQueue(D3D12_COMMAND_LIST_TYPE type)
     {

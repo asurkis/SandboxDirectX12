@@ -11,12 +11,8 @@ set(SHADER_FILES
 set(CLASSES
     Application
     CommandQueue
-    DescriptorAllocator
-    Device
-    # DynamicDescriptorHeap
     Game
     MainWindow
-    UploadBuffer
 )
 
 add_custom_target(Shaders SOURCES ${SHADER_FILES})
