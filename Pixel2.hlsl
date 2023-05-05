@@ -25,16 +25,15 @@ float4 main(VertexShaderOutput IN)
     : SV_Target
 {
     // return Frame.Load(IN.UV);
-    int2   pos = ScreenSizeCB.Size * IN.UV;
-    
-    float4 gx  = Frame.Load(int3(pos + int2(1, -1), 0)) + 2 * Frame.Load(int3(pos + int2(1, 0), 0))
-              + Frame.Load(int3(pos + int2(1, 1), 0)) - Frame.Load(int3(pos + int2(-1, -1), 0))
-              - 2 * Frame.Load(int3(pos + int2(-1, 0), 0)) - Frame.Load(int3(pos + int2(-1, 1), 0));
+    int2 pos = ScreenSizeCB.Size * IN.UV;
 
-    float4 gy = Frame.Load(int3(pos + int2(-1, 1), 0)) + 2 * Frame.Load(int3(pos + int2(0, 1), 0))
-              + Frame.Load(int3(pos + int2(1, 1), 0)) - Frame.Load(int3(pos + int2(-1, -1), 0))
-              - 2 * Frame.Load(int3(pos + int2(0, -1), 0)) - Frame.Load(int3(pos + int2(1, -1), 0));
+    float4 gx = 1 * Frame.Load(int3(pos + int2(1, -1), 0)) - 1 * Frame.Load(int3(pos + int2(-1, -1), 0))
+              + 2 * Frame.Load(int3(pos + int2(1, +0), 0)) - 2 * Frame.Load(int3(pos + int2(-1, +0), 0))
+              + 1 * Frame.Load(int3(pos + int2(1, +1), 0)) - 1 * Frame.Load(int3(pos + int2(-1, +1), 0));
 
-    return 
-        float4(sqrt(gx.rgb * gx.rgb + gy.rgb * gy.rgb), 1.0f);
+    float4 gy = 1 * Frame.Load(int3(pos + int2(-1, 1), 0)) - 1 * Frame.Load(int3(pos + int2(-1, -1), 0))
+              + 2 * Frame.Load(int3(pos + int2(+0, 1), 0)) - 2 * Frame.Load(int3(pos + int2(+0, -1), 0))
+              + 1 * Frame.Load(int3(pos + int2(+1, 1), 0)) - 1 * Frame.Load(int3(pos + int2(+1, -1), 0));
+
+    return float4(sqrt(gx.rgb * gx.rgb + gy.rgb * gy.rgb), 1.0f);
 }
