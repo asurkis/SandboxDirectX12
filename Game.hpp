@@ -19,12 +19,14 @@ class Game
 
     PDescriptorHeap m_RTVHeap;
     PDescriptorHeap m_DSVHeap;
-    PRootSignature  m_RootSignature1;
-    PRootSignature  m_RootSignature2;
-    PPipelineState  m_PipelineStateLess;
-    PPipelineState  m_PipelineStateGreater;
-    PPipelineState  m_PipelineStatePost;
-    D3D12_RECT      m_ScissorRect;
+    PDescriptorHeap m_TextureHeap;
+
+    PRootSignature m_RootSignature1;
+    PRootSignature m_RootSignature2;
+    PPipelineState m_PipelineStateLess;
+    PPipelineState m_PipelineStateGreater;
+    PPipelineState m_PipelineStatePost;
+    D3D12_RECT     m_ScissorRect;
 
     PCommandAllocator    m_CommandAllocator;
     PGraphicsCommandList m_CommandList;
@@ -52,7 +54,7 @@ class Game
                               size_t               elementSize,
                               const void          *bufferData,
                               D3D12_RESOURCE_FLAGS flags);
-    void ResizeDepthBuffer(int width, int height);
+    void ResizeBuffers(int width, int height);
 
     void OnResize(int width, int height);
     void OnUpdate();

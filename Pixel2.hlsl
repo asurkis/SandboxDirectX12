@@ -1,4 +1,4 @@
-Texture2D<float4> Frame : register(t0);
+Texture2D<float4> Frame : register(s0);
 
 struct ScreenSize
 {
@@ -13,9 +13,28 @@ struct VertexShaderOutput
     float2 UV : UV;
 };
 
+bool IsPrime(int x)
+{
+    for (int i = 2; i * i <= x; ++i)
+        if (x % i == 0)
+            return false;
+    return true;
+}
+
 float4 main(VertexShaderOutput IN)
     : SV_Target
 {
     // return Frame.Load(IN.UV);
-    return float4(1.0f, 0.0f, 0.0f, 1.0f);
+    int2   pos = ScreenSizeCB.Size * IN.UV;
+    
+    float4 gx  = Frame.Load(int3(pos + int2(1, -1), 0)) + 2 * Frame.Load(int3(pos + int2(1, 0), 0))
+              + Frame.Load(int3(pos + int2(1, 1), 0)) - Frame.Load(int3(pos + int2(-1, -1), 0))
+              - 2 * Frame.Load(int3(pos + int2(-1, 0), 0)) - Frame.Load(int3(pos + int2(-1, 1), 0));
+
+    float4 gy = Frame.Load(int3(pos + int2(-1, 1), 0)) + 2 * Frame.Load(int3(pos + int2(0, 1), 0))
+              + Frame.Load(int3(pos + int2(1, 1), 0)) - Frame.Load(int3(pos + int2(-1, -1), 0))
+              - 2 * Frame.Load(int3(pos + int2(0, -1), 0)) - Frame.Load(int3(pos + int2(1, -1), 0));
+
+    return 
+        float4(sqrt(gx.rgb * gx.rgb + gy.rgb * gy.rgb), 1.0f);
 }

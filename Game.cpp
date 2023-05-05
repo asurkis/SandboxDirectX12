@@ -100,6 +100,10 @@ Game::Game(Application *application, int width, int height)
     heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
     Assert(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_DSVHeap)));
 
+    heapDesc.Type  = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    Assert(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_TextureHeap)));
+
     D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
     featureData.HighestVersion                    = D3D_ROOT_SIGNATURE_VERSION_1_1;
     if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
@@ -111,10 +115,10 @@ Game::Game(Application *application, int width, int height)
                                      | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
     CD3DX12_ROOT_PARAMETER rootParameters[2] = {};
-    rootParameters[0].InitAsConstants(sizeof(XMMATRIX) / sizeof(DWORD), 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+    rootParameters[0].InitAsConstants(sizeof(XMMATRIX) / sizeof(FLOAT), 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
 
-    CD3DX12_ROOT_SIGNATURE_DESC sigDesc(
-        1, rootParameters, 0, nullptr, flags | D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS);
+    CD3DX12_ROOT_SIGNATURE_DESC sigDesc = {};
+    sigDesc.Init(1, rootParameters, 0, nullptr, flags | D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS);
 
     PBlob rootSigBlob;
     PBlob errorBlob;
@@ -125,11 +129,10 @@ Game::Game(Application *application, int width, int height)
 
     // Init texture view
 
-    rootParameters[0].InitAsConstants(2, 0);
-    rootParameters[1].InitAsShaderResourceView(0);
-    CD3DX12_STATIC_SAMPLER_DESC samplers[1] = {};
-    samplers[0].Init(0);
-    sigDesc.Init(2, rootParameters, 1, samplers, flags);
+    rootParameters[0].InitAsConstants(2, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+    rootParameters[1].InitAsDescriptorTable(
+        1, &CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0), D3D12_SHADER_VISIBILITY_PIXEL);
+    sigDesc.Init(2, rootParameters, 0, nullptr, flags);
     Assert(D3D12SerializeRootSignature(&sigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootSigBlob, &errorBlob));
     Assert(device->CreateRootSignature(
         0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature2)));
@@ -139,7 +142,7 @@ Game::Game(Application *application, int width, int height)
     UINT64 fenceValue = commandQueue.ExecuteCommandList(commandList);
     commandQueue.WaitForFenceValue(fenceValue);
     m_ContentLoaded = true;
-    ResizeDepthBuffer(width, height);
+    ResizeBuffers(width, height);
 }
 
 void Game::ReloadShaders()
@@ -260,7 +263,7 @@ void Game::UpdateBufferResource(PGraphicsCommandList commandList,
     UpdateSubresources(commandList.Get(), *destinationResource, *intermediateResource, 0, 0, 1, &data);
 }
 
-void Game::ResizeDepthBuffer(int width, int height)
+void Game::ResizeBuffers(int width, int height)
 {
     if (!m_ContentLoaded)
         return;
@@ -270,7 +273,7 @@ void Game::ResizeDepthBuffer(int width, int height)
     PDevice device = Application::Get()->GetDevice();
 
     D3D12_CLEAR_VALUE colorClearValue = {};
-    colorClearValue.Format            = DXGI_FORMAT_R16G16B16A16_UNORM;
+    colorClearValue.Format            = DXGI_FORMAT_R8G8B8A8_UNORM;
     colorClearValue.Color[0]          = 1.0f;
     colorClearValue.Color[1]          = 1.0f;
     colorClearValue.Color[2]          = 1.0f;
@@ -284,7 +287,7 @@ void Game::ResizeDepthBuffer(int width, int height)
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
         D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
         &CD3DX12_RESOURCE_DESC::Tex2D(
-            DXGI_FORMAT_R16G16B16A16_UNORM, width, height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET),
+            DXGI_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET),
         D3D12_RESOURCE_STATE_GENERIC_READ,
         &colorClearValue,
         IID_PPV_ARGS(&m_ColorBuffer)));
@@ -299,7 +302,7 @@ void Game::ResizeDepthBuffer(int width, int height)
         IID_PPV_ARGS(&m_DepthBuffer)));
 
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-    rtvDesc.Format                        = DXGI_FORMAT_R16G16B16A16_UNORM;
+    rtvDesc.Format                        = DXGI_FORMAT_R8G8B8A8_UNORM;
     rtvDesc.ViewDimension                 = D3D12_RTV_DIMENSION_TEXTURE2D;
     rtvDesc.Texture2D.MipSlice            = 0;
 
@@ -309,15 +312,26 @@ void Game::ResizeDepthBuffer(int width, int height)
     dsvDesc.Texture2D.MipSlice            = 0;
     dsvDesc.Flags                         = D3D12_DSV_FLAG_NONE;
 
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format                          = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Texture2D.MostDetailedMip       = 0;
+    srvDesc.Texture2D.MipLevels             = -1;
+    srvDesc.Texture2D.PlaneSlice            = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp   = 0.0f;
+
     device->CreateRenderTargetView(m_ColorBuffer.Get(), &rtvDesc, m_RTVHeap->GetCPUDescriptorHandleForHeapStart());
     device->CreateDepthStencilView(m_DepthBuffer.Get(), &dsvDesc, m_DSVHeap->GetCPUDescriptorHandleForHeapStart());
+    device->CreateShaderResourceView(
+        m_ColorBuffer.Get(), &srvDesc, m_TextureHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
 void Game::OnResize(int width, int height)
 {
     if (width == m_Width && height == m_Height)
         return;
-    ResizeDepthBuffer(width, height);
+    ResizeBuffers(width, height);
     m_Width  = width;
     m_Height = height;
 }
@@ -403,8 +417,8 @@ void Game::OnRender()
     auto      rtv                    = m_RTVHeap->GetCPUDescriptorHandleForHeapStart();
     auto      dsv                    = m_DSVHeap->GetCPUDescriptorHandleForHeapStart();
 
-    // TransitionResource(
-    //     commandList, m_ColorBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    TransitionResource(
+        commandList, m_ColorBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
     TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     FLOAT clearColor[] = {1.0f, 0.75f, 0.5f, 1.0f};
@@ -425,7 +439,7 @@ void Game::OnRender()
     CD3DX12_VIEWPORT viewport(0.0f, 0.0f, static_cast<float>(m_Width), static_cast<float>(m_Height));
     commandList->RSSetViewports(1, &viewport);
     commandList->RSSetScissorRects(1, &m_ScissorRect);
-    commandList->OMSetRenderTargets(1, &outRtv, FALSE, &dsv);
+    commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 
     commandList->SetGraphicsRootSignature(m_RootSignature1.Get());
     commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -436,6 +450,23 @@ void Game::OnRender()
     mvpMatrix          = XMMatrixMultiply(mvpMatrix, m_ProjectionMatrix);
     commandList->SetGraphicsRoot32BitConstants(0, sizeof(mvpMatrix) / 4, &mvpMatrix, 0);
     commandList->DrawIndexedInstanced(_countof(g_Indices), 1, 0, 0, 0);
+
+    TransitionResource(
+        commandList, m_ColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
+
+    commandList->OMSetRenderTargets(1, &outRtv, FALSE, nullptr);
+    commandList->SetPipelineState(m_PipelineStatePost.Get());
+    commandList->SetGraphicsRootSignature(m_RootSignature2.Get());
+    commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView2);
+    commandList->IASetIndexBuffer(nullptr);
+
+    ID3D12DescriptorHeap *const heapsToSet[] = {m_TextureHeap.Get()};
+    commandList->SetDescriptorHeaps(1, heapsToSet);
+    commandList->SetGraphicsRootDescriptorTable(1, m_TextureHeap->GetGPUDescriptorHandleForHeapStart());
+
+    XMINT2 screenSize(m_Width, m_Height);
+    commandList->SetGraphicsRoot32BitConstants(0, 2, &screenSize, 0);
+    commandList->DrawInstanced(6, 1, 0, 0);
 
     TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
