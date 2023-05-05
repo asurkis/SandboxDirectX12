@@ -275,8 +275,8 @@ void Game::ResizeBuffers(int width, int height)
     D3D12_CLEAR_VALUE colorClearValue = {};
     colorClearValue.Format            = DXGI_FORMAT_R8G8B8A8_UNORM;
     colorClearValue.Color[0]          = 1.0f;
-    colorClearValue.Color[1]          = 1.0f;
-    colorClearValue.Color[2]          = 1.0f;
+    colorClearValue.Color[1]          = 0.75f;
+    colorClearValue.Color[2]          = 0.5f;
     colorClearValue.Color[3]          = 1.0f;
 
     D3D12_CLEAR_VALUE depthClearValue = {};
