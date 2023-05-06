@@ -2,6 +2,8 @@
 
 #include "pch.hpp"
 
+#include "Utils.hpp"
+
 class Application;
 
 class Game
@@ -38,7 +40,7 @@ class Game
     int m_Width;
     int m_Height;
 
-    UINT64 m_FenceValues[3];
+    UINT64 m_FenceValues[BUFFER_COUNT];
 
     bool m_ContentLoaded = false;
 

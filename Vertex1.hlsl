@@ -1,3 +1,5 @@
+#include "RootSignature1.hlsl"
+
 struct VertexPosColor
 {
     float3 Position : POSITION;
@@ -17,8 +19,7 @@ struct VertexShaderOutput
     float4 Color : COLOR;
 };
 
-VertexShaderOutput main(VertexPosColor IN)
-{
+[RootSignature(ROOT_SIGNATURE_1)] VertexShaderOutput main(VertexPosColor IN) {
     VertexShaderOutput OUT;
     OUT.Position = mul(ModelViewProjectionCB.MVP, float4(IN.Position, 1.0f));
     // OUT.Position = float4(0.5 * IN.Position, 1.0f);

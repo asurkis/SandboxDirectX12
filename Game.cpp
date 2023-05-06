@@ -120,23 +120,6 @@ Game::Game(Application *application, int width, int height)
     CD3DX12_ROOT_SIGNATURE_DESC sigDesc = {};
     sigDesc.Init(1, rootParameters, 0, nullptr, flags | D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS);
 
-    PBlob rootSigBlob;
-    PBlob errorBlob;
-
-    Assert(D3D12SerializeRootSignature(&sigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootSigBlob, &errorBlob));
-    Assert(device->CreateRootSignature(
-        0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature1)));
-
-    // Init texture view
-
-    rootParameters[0].InitAsConstants(2, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-    rootParameters[1].InitAsDescriptorTable(
-        1, &CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0), D3D12_SHADER_VISIBILITY_PIXEL);
-    sigDesc.Init(2, rootParameters, 0, nullptr, flags);
-    Assert(D3D12SerializeRootSignature(&sigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootSigBlob, &errorBlob));
-    Assert(device->CreateRootSignature(
-        0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature2)));
-
     ReloadShaders();
 
     UINT64 fenceValue = commandQueue.ExecuteCommandList(commandList);
@@ -166,6 +149,11 @@ void Game::ReloadShaders()
     Assert(D3DReadFileToBlob(L"Vertex2.cso", &vertexShader2Blob));
     Assert(D3DReadFileToBlob(L"Pixel1.cso", &pixelShader1Blob));
     Assert(D3DReadFileToBlob(L"Pixel2.cso", &pixelShader2Blob));
+
+    Assert(device->CreateRootSignature(
+        0, vertexShader1Blob->GetBufferPointer(), vertexShader1Blob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature1)));
+    Assert(device->CreateRootSignature(
+        0, vertexShader2Blob->GetBufferPointer(), vertexShader2Blob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature2)));
 
     D3D12_INPUT_ELEMENT_DESC inputLayout1[] = {
         {"POSITION",
@@ -419,7 +407,7 @@ void Game::OnRender()
 
     ID3D12DescriptorHeap *const heapsToSet[] = {m_TextureHeap.Get()};
     commandList->SetDescriptorHeaps(1, heapsToSet);
-    
+
     TransitionResource(
         commandList, m_ColorBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
     TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);

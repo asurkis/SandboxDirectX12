@@ -24,3 +24,5 @@ struct Math
         return tmp - tmp % alignment;
     }
 };
+
+static inline constexpr size_t BUFFER_COUNT = 3;

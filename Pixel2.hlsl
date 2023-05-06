@@ -1,3 +1,5 @@
+#include "RootSignature2.hlsl"
+
 Texture2D<float4> Frame : register(s0);
 
 struct ScreenSize
@@ -21,7 +23,7 @@ bool IsPrime(int x)
     return true;
 }
 
-float4 main(VertexShaderOutput IN)
+[RootSignature(ROOT_SIGNATURE_2)] float4 main(VertexShaderOutput IN)
     : SV_Target
 {
     // return Frame.Load(IN.UV);
