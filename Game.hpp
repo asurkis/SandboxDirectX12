@@ -2,6 +2,7 @@
 
 #include "pch.hpp"
 
+#include "DescriptorHeap.hpp"
 #include "Utils.hpp"
 
 class Application;
@@ -19,8 +20,8 @@ class Game
     PResource m_ColorBuffer;
     PResource m_DepthBuffer;
 
-    PDescriptorHeap m_DSVHeap;
-    PDescriptorHeap m_TextureHeap;
+    DescriptorHeap m_DSVHeap;
+    DescriptorHeap m_TextureHeap;
 
     PRootSignature m_RootSignature1;
     PRootSignature m_RootSignature2;
@@ -45,6 +46,7 @@ class Game
 
   public:
     Game(Application *application, int width, int height);
+    ~Game();
 
     void ReloadShaders();
 

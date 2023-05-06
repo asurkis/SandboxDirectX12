@@ -3,13 +3,12 @@
 #include "pch.hpp"
 
 #include "CommandQueue.hpp"
+#include "DescriptorHeap.hpp"
 #include "Game.hpp"
 #include "MainWindow.hpp"
 #include "Utils.hpp"
 
 class Game;
-class WindowClass;
-class Window;
 
 class Application
 {
@@ -28,11 +27,11 @@ class Application
     RECT m_WindowRect;
 
     // DirectX 12 Objects
-    PDevice         m_Device;
-    PSwapChain      m_SwapChain;
-    PDescriptorHeap m_RTVDescriptorHeap;
-    UINT            m_RTVDescriptorSize;
-    UINT            m_CurrentBackBufferIndex;
+    PDevice    m_Device;
+    PSwapChain m_SwapChain;
+    UINT       m_CurrentBackBufferIndex;
+
+    DescriptorHeap m_RTVDescriptorHeap;
 
     // Synchronization objects
     UINT64 m_FrameFenceValues[BACK_BUFFER_COUNT] = {};
@@ -65,12 +64,6 @@ class Application
     void ToggleFullscreen() { SetFullscreen(!m_Fullscreen); }
     void SetFullscreen(bool fullscreen);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE GetRTV(int offset) const
-    {
-        return CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), offset, m_RTVDescriptorSize);
-    }
-
   public:
     static Application *Get() noexcept { return g_Instance; }
     Application(HINSTANCE hInstance);
@@ -87,8 +80,15 @@ class Application
     PResource  GetCurrentBackBuffer() const { return m_BackBuffers[m_CurrentBackBufferIndex]; }
     PSwapChain GetSwapChain() const { return m_SwapChain; }
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE CurrentRTV() const { return GetRTV(BACK_BUFFER_START + m_CurrentBackBufferIndex); }
-    CD3DX12_CPU_DESCRIPTOR_HANDLE IntermediateRTV() const { return GetRTV(INTERMEDIATE_RTV_START); }
+    CD3DX12_CPU_DESCRIPTOR_HANDLE CurrentRTV() const
+    {
+        return m_RTVDescriptorHeap.GetCPUOffset(BACK_BUFFER_START + m_CurrentBackBufferIndex);
+    }
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE IntermediateRTV() const
+    {
+        return m_RTVDescriptorHeap.GetCPUOffset(INTERMEDIATE_RTV_START);
+    }
 
     void Flush()
     {

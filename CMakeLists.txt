@@ -13,6 +13,7 @@ set(SHADER_FILES
 set(CLASSES
     Application
     CommandQueue
+    DescriptorHeap
     Game
     MainWindow
 )

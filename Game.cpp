@@ -1,8 +1,7 @@
 #include "Game.hpp"
-#include "Application.hpp"
 
-#include <iostream>
-#include <random>
+#include "Application.hpp"
+#include "DescriptorHeap.hpp"
 
 using namespace DirectX;
 
@@ -91,15 +90,9 @@ Game::Game(Application *application, int width, int height)
     m_IndexBufferView1.SizeInBytes    = sizeof(g_Indices);
     m_IndexBufferView1.Format         = DXGI_FORMAT_R16_UINT;
 
-    D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-    heapDesc.NumDescriptors             = 1;
-    heapDesc.Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-    heapDesc.Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    Assert(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_DSVHeap)));
-
-    heapDesc.Type  = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    Assert(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_TextureHeap)));
+    m_DSVHeap = DescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
+    m_TextureHeap
+        = DescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
     D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
     featureData.HighestVersion                    = D3D_ROOT_SIGNATURE_VERSION_1_1;
@@ -124,6 +117,8 @@ Game::Game(Application *application, int width, int height)
     m_ContentLoaded = true;
     ResizeBuffers(width, height);
 }
+
+Game::~Game() {}
 
 void Game::ReloadShaders()
 {
@@ -312,9 +307,8 @@ void Game::ResizeBuffers(int width, int height)
     srvDesc.Texture2D.ResourceMinLODClamp   = 0.0f;
 
     device->CreateRenderTargetView(m_ColorBuffer.Get(), &rtvDesc, Application::Get()->IntermediateRTV());
-    device->CreateDepthStencilView(m_DepthBuffer.Get(), &dsvDesc, m_DSVHeap->GetCPUDescriptorHandleForHeapStart());
-    device->CreateShaderResourceView(
-        m_ColorBuffer.Get(), &srvDesc, m_TextureHeap->GetCPUDescriptorHandleForHeapStart());
+    device->CreateDepthStencilView(m_DepthBuffer.Get(), &dsvDesc, m_DSVHeap.GetCPUStart());
+    device->CreateShaderResourceView(m_ColorBuffer.Get(), &srvDesc, m_TextureHeap.GetCPUStart());
 }
 
 void Game::OnResize(int width, int height)
@@ -405,9 +399,9 @@ void Game::OnRender()
     PResource backBuffer             = Application::Get()->GetCurrentBackBuffer();
     auto      outRtv                 = Application::Get()->CurrentRTV();
     auto      rtv                    = Application::Get()->IntermediateRTV();
-    auto      dsv                    = m_DSVHeap->GetCPUDescriptorHandleForHeapStart();
+    auto      dsv                    = m_DSVHeap.GetCPUStart();
 
-    ID3D12DescriptorHeap *const heapsToSet[] = {m_TextureHeap.Get()};
+    ID3D12DescriptorHeap *const heapsToSet[] = {m_TextureHeap.Get().Get()};
     commandList->SetDescriptorHeaps(1, heapsToSet);
 
     TransitionResource(
@@ -453,7 +447,7 @@ void Game::OnRender()
     commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView2);
     commandList->IASetIndexBuffer(nullptr);
 
-    commandList->SetGraphicsRootDescriptorTable(1, m_TextureHeap->GetGPUDescriptorHandleForHeapStart());
+    commandList->SetGraphicsRootDescriptorTable(1, m_TextureHeap.GetGPUStart());
 
     XMINT2 screenSize(m_Width, m_Height);
     commandList->SetGraphicsRoot32BitConstants(0, 2, &screenSize, 0);
