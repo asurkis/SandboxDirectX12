@@ -417,6 +417,9 @@ void Game::OnRender()
     auto      rtv                    = m_RTVHeap->GetCPUDescriptorHandleForHeapStart();
     auto      dsv                    = m_DSVHeap->GetCPUDescriptorHandleForHeapStart();
 
+    ID3D12DescriptorHeap *const heapsToSet[] = {m_TextureHeap.Get()};
+    commandList->SetDescriptorHeaps(1, heapsToSet);
+    
     TransitionResource(
         commandList, m_ColorBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
     TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -460,8 +463,6 @@ void Game::OnRender()
     commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView2);
     commandList->IASetIndexBuffer(nullptr);
 
-    ID3D12DescriptorHeap *const heapsToSet[] = {m_TextureHeap.Get()};
-    commandList->SetDescriptorHeaps(1, heapsToSet);
     commandList->SetGraphicsRootDescriptorTable(1, m_TextureHeap->GetGPUDescriptorHandleForHeapStart());
 
     XMINT2 screenSize(m_Width, m_Height);
