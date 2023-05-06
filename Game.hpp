@@ -4,19 +4,15 @@
 
 #include "Camera.hpp"
 #include "DescriptorHeap.hpp"
+#include "Mesh.hpp"
 #include "Utils.hpp"
 
 class Application;
 
 class Game
 {
-    PResource                m_VertexBuffer1;
-    D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView1;
-    PResource                m_IndexBuffer1;
-    D3D12_INDEX_BUFFER_VIEW  m_IndexBufferView1;
-
-    PResource                m_VertexBuffer2;
-    D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView2;
+    Mesh m_CubeMesh;
+    Mesh m_ScreenMesh;
 
     PResource m_ColorBuffer;
     PResource m_DepthBuffer;

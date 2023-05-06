@@ -17,6 +17,9 @@ set(CLASSES
     DescriptorHeap
     Game
     MainWindow
+    Mesh
+    MeshData
+    Utils
 )
 
 find_package(assimp REQUIRED)

@@ -11,7 +11,7 @@ struct VertexPosColor
     XMFLOAT3 Color;
 };
 
-static VertexPosColor g_Vertices[] = {
+static const VertexPosColor g_CubeVertices[] = {
     {XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, 0.0f)},
     {XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f)},
     {XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f)},
@@ -22,16 +22,7 @@ static VertexPosColor g_Vertices[] = {
     {XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f)},
 };
 
-static XMFLOAT2 g_FullScreen[] = {
-    XMFLOAT2(0.0f, 0.0f),
-    XMFLOAT2(0.0f, 1.0f),
-    XMFLOAT2(1.0f, 1.0f),
-    XMFLOAT2(1.0f, 1.0f),
-    XMFLOAT2(1.0f, 0.0f),
-    XMFLOAT2(0.0f, 0.0f),
-};
-
-static WORD g_Indices[] = {
+static const WORD g_CubeIndices[] = {
     0, 1, 2, 2, 1, 3,
 
     4, 6, 5, 5, 6, 7,
@@ -45,6 +36,15 @@ static WORD g_Indices[] = {
     2, 3, 6, 6, 3, 7,
 };
 
+static const XMFLOAT2 g_FullScreen[] = {
+    XMFLOAT2(0.0f, 0.0f),
+    XMFLOAT2(0.0f, 1.0f),
+    XMFLOAT2(1.0f, 0.0f),
+    XMFLOAT2(1.0f, 1.0f),
+};
+
+static const WORD g_FullScreenIndices[] = {0, 1, 2, 2, 1, 3};
+
 Game::Game(Application *application, int width, int height)
     : m_ScissorRect{0, 0, LONG_MAX, LONG_MAX},
       m_Width(width),
@@ -54,41 +54,14 @@ Game::Game(Application *application, int width, int height)
     CommandQueue        &commandQueue = Application::Get()->GetCommandQueueCopy();
     PGraphicsCommandList commandList  = commandQueue.ResetCommandList();
 
-    PResource intermediateVertexBuffer1;
-    UpdateBufferResource(commandList,
-                         &m_VertexBuffer1,
-                         &intermediateVertexBuffer1,
-                         _countof(g_Vertices),
-                         sizeof(VertexPosColor),
-                         g_Vertices,
-                         D3D12_RESOURCE_FLAG_NONE);
-    m_VertexBufferView1.BufferLocation = m_VertexBuffer1->GetGPUVirtualAddress();
-    m_VertexBufferView1.SizeInBytes    = sizeof(g_Vertices);
-    m_VertexBufferView1.StrideInBytes  = sizeof(VertexPosColor);
+    MeshData<VertexPosColor, WORD> cubeData;
+    MeshData<XMFLOAT2, WORD>       fullScreenData;
 
-    PResource intermediateVertexBuffer2;
-    UpdateBufferResource(commandList,
-                         &m_VertexBuffer2,
-                         &intermediateVertexBuffer2,
-                         _countof(g_FullScreen),
-                         sizeof(VertexPosColor),
-                         g_FullScreen,
-                         D3D12_RESOURCE_FLAG_NONE);
-    m_VertexBufferView2.BufferLocation = m_VertexBuffer2->GetGPUVirtualAddress();
-    m_VertexBufferView2.SizeInBytes    = sizeof(g_FullScreen);
-    m_VertexBufferView2.StrideInBytes  = sizeof(XMFLOAT2);
+    cubeData.InitData(g_CubeVertices, _countof(g_CubeVertices), g_CubeIndices, _countof(g_CubeIndices));
+    fullScreenData.InitData(g_FullScreen, 4, g_FullScreenIndices, 6);
 
-    PResource intermediateIndexBuffer1;
-    UpdateBufferResource(commandList,
-                         &m_IndexBuffer1,
-                         &intermediateIndexBuffer1,
-                         _countof(g_Indices),
-                         sizeof(WORD),
-                         g_Indices,
-                         D3D12_RESOURCE_FLAG_NONE);
-    m_IndexBufferView1.BufferLocation = m_IndexBuffer1->GetGPUVirtualAddress();
-    m_IndexBufferView1.SizeInBytes    = sizeof(g_Indices);
-    m_IndexBufferView1.Format         = DXGI_FORMAT_R16_UINT;
+    auto imm1 = m_CubeMesh.QueryInit(commandList, cubeData);
+    auto imm2 = m_ScreenMesh.QueryInit(commandList, fullScreenData);
 
     m_DSVHeap = DescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
     m_TextureHeap
@@ -415,12 +388,11 @@ void Game::OnRender()
 
     commandList->SetGraphicsRootSignature(m_RootSignature1.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView1);
-    commandList->IASetIndexBuffer(&m_IndexBufferView1);
 
     XMMATRIX mvpMatrix = m_ModelMatrix * m_Camera.CalcMatrix();
     commandList->SetGraphicsRoot32BitConstants(0, 16, &mvpMatrix, 0);
-    commandList->DrawIndexedInstanced(_countof(g_Indices), 1, 0, 0, 0);
+
+    m_CubeMesh.Draw(commandList);
 
     TransitionResource(
         commandList, m_ColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
@@ -428,14 +400,13 @@ void Game::OnRender()
     commandList->OMSetRenderTargets(1, &outRtv, FALSE, nullptr);
     commandList->SetPipelineState(m_PipelineStatePost.Get());
     commandList->SetGraphicsRootSignature(m_RootSignature2.Get());
-    commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView2);
-    commandList->IASetIndexBuffer(nullptr);
 
     commandList->SetGraphicsRootDescriptorTable(1, m_TextureHeap.GetGPUStart());
 
     XMINT2 screenSize(m_Width, m_Height);
     commandList->SetGraphicsRoot32BitConstants(0, 2, &screenSize, 0);
-    commandList->DrawInstanced(6, 1, 0, 0);
+
+    m_ScreenMesh.Draw(commandList);
 
     TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
