@@ -18,6 +18,8 @@ set(CLASSES
     MainWindow
 )
 
+find_package(assimp REQUIRED)
+
 add_custom_target(Shaders SOURCES ${SHADER_FILES})
 
 set_source_files_properties( Vertex1.hlsl PROPERTIES ShaderType vs VS_SHADER_TYPE Vertex )
@@ -49,5 +51,16 @@ add_executable(${PROJECT_NAME} WIN32 main.cpp pch.hpp ${CPP_FILES})
 target_precompile_headers(${PROJECT_NAME} PRIVATE pch.hpp)
 
 add_dependencies(${PROJECT_NAME} Shaders)
-target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/DirectX-Headers/include/directx")
-target_link_libraries(${PROJECT_NAME} PRIVATE DirectX-Headers DirectX-Guids d3d12.lib dxgi.lib d3dcompiler.lib)
+
+target_include_directories(${PROJECT_NAME} PRIVATE 
+    "${CMAKE_CURRENT_SOURCE_DIR}/DirectX-Headers/include/directx"
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE 
+    DirectX-Headers 
+    DirectX-Guids 
+    d3d12.lib 
+    dxgi.lib 
+    d3dcompiler.lib
+    assimp::assimp
+)
