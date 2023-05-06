@@ -12,6 +12,7 @@ set(SHADER_FILES
 
 set(CLASSES
     Application
+    Camera
     CommandQueue
     DescriptorHeap
     Game

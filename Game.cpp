@@ -347,10 +347,9 @@ void Game::OnUpdate()
     double   angle        = timeTotal;
     XMVECTOR rotationAxis = XMVectorSet(0, 1, 1, 0);
     m_ModelMatrix         = DirectX::XMMatrixRotationAxis(rotationAxis, static_cast<float>(angle));
-    XMVECTOR eyePosition  = XMVectorSet(0, -10, 0, 1);
-    XMVECTOR focusPoint   = XMVectorSet(0, 0, 0, 1);
-    XMVECTOR upDir        = XMVectorSet(0, 0, 1, 0);
-    m_ViewMatrix          = DirectX::XMMatrixLookAtLH(eyePosition, focusPoint, upDir);
+
+    m_Camera.Pos = XMFLOAT3(0.0f, 0.0f, -5.0f);
+    m_Camera.Rot = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
     double aspectRatio = m_Width / static_cast<double>(m_Height);
 
@@ -360,30 +359,19 @@ void Game::OnUpdate()
     double shiftX = 0.02f * m_ShakeStrength * distribution(randomEngine);
     double shiftY = 0.02f * m_ShakeStrength * distribution(randomEngine);
 
-    double x1 = (shiftX - tanFov) * aspectRatio;
-    double x2 = (shiftX + tanFov) * aspectRatio;
-    double y1 = shiftY - tanFov;
-    double y2 = shiftY + tanFov;
-    double z1 = 0.1;
-    double z2 = 100.0;
+    if (m_ZLess)
+    {
+        m_Camera.Depth1 = 0.0f;
+        m_Camera.Depth2 = 1.0f;
+    }
+    else
+    {
+        m_Camera.Depth1 = 1.0f;
+        m_Camera.Depth2 = 0.0f;
+    }
 
-    m_ProjectionMatrix = XMMATRIX(static_cast<float>(2.0 / (x2 - x1)),                          // row 0 col 0
-                                  0.0f,                                                         // row 1 col 0
-                                  0.0f,                                                         // row 2 col 0
-                                  0.0f,                                                         // row 3 col 0
-                                  0.0f,                                                         // row 0 col 1
-                                  static_cast<float>(2.0 / (y2 - y1)),                          // row 1 col 1
-                                  0.0f,                                                         // row 2 col 1
-                                  0.0f,                                                         // row 3 col 1
-                                  static_cast<float>((x1 + x2) / (x1 - x2)),                    // row 0 col 2
-                                  static_cast<float>((y1 + y2) / (y1 - y2)),                    // row 1 col 2
-                                  static_cast<float>((m_ZLess ? z2 : -z1) / (z2 - z1)),         // row 2 col 2
-                                  1.0f,                                                         // row 3 col 2
-                                  0.0f,                                                         // row 0 col 3
-                                  0.0f,                                                         // row 1 col 3
-                                  static_cast<float>((m_ZLess ? -1 : 1) * z1 * z2 / (z2 - z1)), // row 2 col 3
-                                  0.0f                                                          // row 3 col 3
-    );
+    m_Camera.xyz1 = XMFLOAT3((shiftX - tanFov) * aspectRatio, shiftY - tanFov, 0.1f);
+    m_Camera.xyz2 = XMFLOAT3((shiftX + tanFov) * aspectRatio, shiftY + tanFov, 100.0f);
     m_ShakeStrength *= exp(-dt);
 }
 
@@ -430,9 +418,8 @@ void Game::OnRender()
     commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView1);
     commandList->IASetIndexBuffer(&m_IndexBufferView1);
 
-    XMMATRIX mvpMatrix = XMMatrixMultiply(m_ModelMatrix, m_ViewMatrix);
-    mvpMatrix          = XMMatrixMultiply(mvpMatrix, m_ProjectionMatrix);
-    commandList->SetGraphicsRoot32BitConstants(0, sizeof(mvpMatrix) / 4, &mvpMatrix, 0);
+    XMMATRIX mvpMatrix = m_ModelMatrix * m_Camera.CalcMatrix();
+    commandList->SetGraphicsRoot32BitConstants(0, 16, &mvpMatrix, 0);
     commandList->DrawIndexedInstanced(_countof(g_Indices), 1, 0, 0, 0);
 
     TransitionResource(

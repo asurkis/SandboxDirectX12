@@ -2,6 +2,7 @@
 
 #include "pch.hpp"
 
+#include "Camera.hpp"
 #include "DescriptorHeap.hpp"
 #include "Utils.hpp"
 
@@ -31,8 +32,7 @@ class Game
     D3D12_RECT     m_ScissorRect;
 
     DirectX::XMMATRIX m_ModelMatrix;
-    DirectX::XMMATRIX m_ViewMatrix;
-    DirectX::XMMATRIX m_ProjectionMatrix;
+    Camera            m_Camera;
 
     int m_Width;
     int m_Height;
