@@ -54,8 +54,8 @@ Game::Game(Application *application, int width, int height)
     CommandQueue        &commandQueue = Application::Get()->GetCommandQueueCopy();
     PGraphicsCommandList commandList  = commandQueue.ResetCommandList();
 
-    MeshData<VertexPosColor, WORD> cubeData;
-    MeshData<XMFLOAT2, WORD>       fullScreenData;
+    MeshData cubeData;
+    MeshData fullScreenData;
 
     cubeData.InitData(g_CubeVertices, _countof(g_CubeVertices), g_CubeIndices, _countof(g_CubeIndices));
     fullScreenData.InitData(g_FullScreen, 4, g_FullScreenIndices, 6);
