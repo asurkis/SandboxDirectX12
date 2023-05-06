@@ -33,9 +33,6 @@ class Application
 
     DescriptorHeap m_RTVDescriptorHeap;
 
-    // Synchronization objects
-    UINT64 m_FrameFenceValues[BACK_BUFFER_COUNT] = {};
-
     // By default, enable V-Sync.
     // Can be toggled with the V key.
     bool m_VSync            = true;

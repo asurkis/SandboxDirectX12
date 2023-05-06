@@ -52,7 +52,7 @@ Game::Game(Application *application, int width, int height)
 {
     PDevice              device       = Application::Get()->GetDevice();
     CommandQueue        &commandQueue = Application::Get()->GetCommandQueueCopy();
-    PGraphicsCommandList commandList  = commandQueue.GetCommandList();
+    PGraphicsCommandList commandList  = commandQueue.ResetCommandList();
 
     PResource intermediateVertexBuffer1;
     UpdateBufferResource(commandList,
@@ -112,13 +112,10 @@ Game::Game(Application *application, int width, int height)
 
     ReloadShaders();
 
-    UINT64 fenceValue = commandQueue.ExecuteCommandList(commandList);
-    commandQueue.WaitForFenceValue(fenceValue);
+    commandQueue.ExecuteAndWait(commandList);
     m_ContentLoaded = true;
     ResizeBuffers(width, height);
 }
-
-Game::~Game() {}
 
 void Game::ReloadShaders()
 {
@@ -393,7 +390,7 @@ void Game::OnUpdate()
 void Game::OnRender()
 {
     CommandQueue        &commandQueue = Application::Get()->GetCommandQueueDirect();
-    PGraphicsCommandList commandList  = commandQueue.GetCommandList();
+    PGraphicsCommandList commandList  = commandQueue.ResetCommandList();
 
     UINT      currentBackBufferIndex = Application::Get()->GetCurrentBackBufferIndex();
     PResource backBuffer             = Application::Get()->GetCurrentBackBuffer();
@@ -455,7 +452,7 @@ void Game::OnRender()
 
     TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-    m_FenceValues[currentBackBufferIndex] = commandQueue.ExecuteCommandList(commandList);
+    UINT64 fenceValue = commandQueue.ExecuteCommandList(commandList);
     Application::Get()->Present();
-    commandQueue.WaitForFenceValue(m_FenceValues[currentBackBufferIndex]);
+    commandQueue.WaitForFenceValue(fenceValue);
 }

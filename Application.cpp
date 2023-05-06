@@ -172,10 +172,7 @@ void Application::OnResize(UINT32 width, UINT32 height)
     m_ClientHeight = (std::max)(1u, height);
     m_CommandQueueDirect->Flush();
     for (UINT i = 0; i < BACK_BUFFER_COUNT; ++i)
-    {
         m_BackBuffers[i].Reset();
-        m_FrameFenceValues[i] = m_FrameFenceValues[m_CurrentBackBufferIndex];
-    }
 
     DXGI_SWAP_CHAIN_DESC desc = {};
     Assert(m_SwapChain->GetDesc(&desc));

@@ -30,9 +30,6 @@ class Game
     PPipelineState m_PipelineStatePost;
     D3D12_RECT     m_ScissorRect;
 
-    PCommandAllocator    m_CommandAllocator;
-    PGraphicsCommandList m_CommandList;
-
     DirectX::XMMATRIX m_ModelMatrix;
     DirectX::XMMATRIX m_ViewMatrix;
     DirectX::XMMATRIX m_ProjectionMatrix;
@@ -40,13 +37,10 @@ class Game
     int m_Width;
     int m_Height;
 
-    UINT64 m_FenceValues[BACK_BUFFER_COUNT];
-
     bool m_ContentLoaded = false;
 
   public:
     Game(Application *application, int width, int height);
-    ~Game();
 
     void ReloadShaders();
 

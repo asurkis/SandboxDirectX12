@@ -43,7 +43,7 @@ class CommandQueue
 
     PCommandQueue Get() const noexcept { return m_CommandQueue; }
 
-    PGraphicsCommandList GetCommandList() const
+    PGraphicsCommandList ResetCommandList() const
     {
         Assert(m_Allocator->Reset());
         Assert(m_CommandList->Reset(m_Allocator.Get(), nullptr));
@@ -111,5 +111,11 @@ class CommandQueue
     {
         UINT64 fenceValueForSignal = Signal();
         WaitForFenceValue(fenceValueForSignal);
+    }
+
+    void ExecuteAndWait(PGraphicsCommandList commandList)
+    {
+        UINT64 fenceValue = ExecuteCommandList(commandList);
+        WaitForFenceValue(fenceValue);
     }
 };
