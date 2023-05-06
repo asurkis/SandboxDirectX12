@@ -1,7 +1,7 @@
 #include "Game.hpp"
 
 #include "Application.hpp"
-#include "DescriptorHeap.hpp"
+#include "MyDXLib/DescriptorHeap.hpp"
 
 using namespace DirectX;
 

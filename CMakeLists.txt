@@ -12,14 +12,14 @@ set(SHADER_FILES
 
 set(CLASSES
     Application
-    Camera
-    CommandQueue
-    DescriptorHeap
     Game
-    MainWindow
-    Mesh
-    MeshData
-    Utils
+    MyDXLib/Camera
+    MyDXLib/CommandQueue
+    MyDXLib/DescriptorHeap
+    MyDXLib/MainWindow
+    MyDXLib/Mesh
+    MyDXLib/MeshData
+    MyDXLib/Utils
 )
 
 find_package(assimp REQUIRED)
@@ -57,6 +57,7 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE pch.hpp)
 add_dependencies(${PROJECT_NAME} Shaders)
 
 target_include_directories(${PROJECT_NAME} PRIVATE 
+    "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/DirectX-Headers/include/directx"
 )
 

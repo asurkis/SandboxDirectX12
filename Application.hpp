@@ -2,11 +2,11 @@
 
 #include "pch.hpp"
 
-#include "CommandQueue.hpp"
-#include "DescriptorHeap.hpp"
 #include "Game.hpp"
-#include "MainWindow.hpp"
-#include "Utils.hpp"
+#include "MyDXLib/CommandQueue.hpp"
+#include "MyDXLib/DescriptorHeap.hpp"
+#include "MyDXLib/MainWindow.hpp"
+#include "MyDXLib/Utils.hpp"
 
 class Game;
 

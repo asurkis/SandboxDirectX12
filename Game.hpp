@@ -2,10 +2,10 @@
 
 #include "pch.hpp"
 
-#include "Camera.hpp"
-#include "DescriptorHeap.hpp"
-#include "Mesh.hpp"
-#include "Utils.hpp"
+#include "MyDXLib/Camera.hpp"
+#include "MyDXLib/DescriptorHeap.hpp"
+#include "MyDXLib/Mesh.hpp"
+#include "MyDXLib/Utils.hpp"
 
 class Application;
 
