@@ -19,7 +19,6 @@ class Game
     PResource m_ColorBuffer;
     PResource m_DepthBuffer;
 
-    PDescriptorHeap m_RTVHeap;
     PDescriptorHeap m_DSVHeap;
     PDescriptorHeap m_TextureHeap;
 
@@ -40,7 +39,7 @@ class Game
     int m_Width;
     int m_Height;
 
-    UINT64 m_FenceValues[BUFFER_COUNT];
+    UINT64 m_FenceValues[BACK_BUFFER_COUNT];
 
     bool m_ContentLoaded = false;
 

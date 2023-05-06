@@ -16,11 +16,11 @@ Application::Application(HINSTANCE hInstance)
     m_CommandQueueCompute.emplace(m_Device, D3D12_COMMAND_LIST_TYPE_COMPUTE);
     m_CommandQueueCopy.emplace(m_Device, D3D12_COMMAND_LIST_TYPE_COPY);
     m_SwapChain = m_CommandQueueDirect->CreateSwapChain(
-        factory, m_Window.Get(), m_TearingSupported, m_ClientWidth, m_ClientHeight, BUFFER_COUNT);
+        factory, m_Window.Get(), m_TearingSupported, m_ClientWidth, m_ClientHeight, BACK_BUFFER_COUNT);
     m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
 
     D3D12_DESCRIPTOR_HEAP_DESC dhDesc = {};
-    dhDesc.NumDescriptors             = BUFFER_COUNT + 1;
+    dhDesc.NumDescriptors             = BACK_BUFFER_COUNT + 1;
     dhDesc.Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
     Assert(m_Device->CreateDescriptorHeap(&dhDesc, IID_PPV_ARGS(&m_RTVDescriptorHeap)));
     m_RTVDescriptorSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -158,7 +158,7 @@ bool Application::CheckTearingSupport()
 void Application::UpdateRenderTargetViews()
 {
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-    for (UINT i = 0; i < BUFFER_COUNT; ++i)
+    for (UINT i = 0; i < BACK_BUFFER_COUNT; ++i)
     {
         PResource backBuffer;
         Assert(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
@@ -175,7 +175,7 @@ void Application::OnResize(UINT32 width, UINT32 height)
     m_ClientWidth  = (std::max)(1u, width);
     m_ClientHeight = (std::max)(1u, height);
     m_CommandQueueDirect->Flush();
-    for (UINT i = 0; i < BUFFER_COUNT; ++i)
+    for (UINT i = 0; i < BACK_BUFFER_COUNT; ++i)
     {
         m_BackBuffers[i].Reset();
         m_FrameFenceValues[i] = m_FrameFenceValues[m_CurrentBackBufferIndex];
@@ -183,7 +183,8 @@ void Application::OnResize(UINT32 width, UINT32 height)
 
     DXGI_SWAP_CHAIN_DESC desc = {};
     Assert(m_SwapChain->GetDesc(&desc));
-    Assert(m_SwapChain->ResizeBuffers(BUFFER_COUNT, m_ClientWidth, m_ClientHeight, desc.BufferDesc.Format, desc.Flags));
+    Assert(m_SwapChain->ResizeBuffers(
+        BACK_BUFFER_COUNT, m_ClientWidth, m_ClientHeight, desc.BufferDesc.Format, desc.Flags));
     m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
     UpdateRenderTargetViews();
 
@@ -245,4 +246,13 @@ void Application::SetFullscreen(bool fullscreen)
                      SWP_FRAMECHANGED | SWP_NOACTIVATE);
         ShowWindow(m_Window.Get(), SW_NORMAL);
     }
+}
+
+UINT Application::Present()
+{
+    UINT syncInterval = m_VSync ? 1 : 0;
+    UINT presentFlags = m_TearingSupported && !m_VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
+    Assert(m_SwapChain->Present(syncInterval, presentFlags));
+    m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
+    return m_CurrentBackBufferIndex;
 }

@@ -18,7 +18,7 @@ class Application
     WindowClass m_WindowClass;
     Window      m_Window;
 
-    PResource m_BackBuffers[BUFFER_COUNT];
+    PResource m_BackBuffers[BACK_BUFFER_COUNT];
 
     bool     m_UseWarp      = false;
     uint32_t m_ClientWidth  = 1280;
@@ -35,7 +35,7 @@ class Application
     UINT            m_CurrentBackBufferIndex;
 
     // Synchronization objects
-    UINT64 m_FrameFenceValues[BUFFER_COUNT] = {};
+    UINT64 m_FrameFenceValues[BACK_BUFFER_COUNT] = {};
 
     // By default, enable V-Sync.
     // Can be toggled with the V key.
@@ -65,10 +65,30 @@ class Application
     void ToggleFullscreen() { SetFullscreen(!m_Fullscreen); }
     void SetFullscreen(bool fullscreen);
 
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetRTV(int offset) const
+    {
+        return CD3DX12_CPU_DESCRIPTOR_HANDLE(
+            m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), offset, m_RTVDescriptorSize);
+    }
+
   public:
     static Application *Get() noexcept { return g_Instance; }
     Application(HINSTANCE hInstance);
     ~Application() { Flush(); }
+
+    PDevice GetDevice() const noexcept { return m_Device; }
+
+    CommandQueue &GetCommandQueueDirect() noexcept { return *m_CommandQueueDirect; }
+    CommandQueue &GetCommandQueueCompute() noexcept { return *m_CommandQueueCompute; }
+    CommandQueue &GetCommandQueueCopy() noexcept { return *m_CommandQueueCopy; }
+
+    UINT64     GetFrameCount() const noexcept { return m_FrameCount; }
+    UINT       GetCurrentBackBufferIndex() const noexcept { return m_CurrentBackBufferIndex; }
+    PResource  GetCurrentBackBuffer() const { return m_BackBuffers[m_CurrentBackBufferIndex]; }
+    PSwapChain GetSwapChain() const { return m_SwapChain; }
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE CurrentRTV() const { return GetRTV(BACK_BUFFER_START + m_CurrentBackBufferIndex); }
+    CD3DX12_CPU_DESCRIPTOR_HANDLE IntermediateRTV() const { return GetRTV(INTERMEDIATE_RTV_START); }
 
     void Flush()
     {
@@ -77,39 +97,6 @@ class Application
         m_CommandQueueCopy->Flush();
     }
 
-    int Run(int nShowCmd);
-
-    PDevice GetDevice() { return m_Device; }
-
-    CommandQueue &GetCommandQueueDirect() noexcept { return *m_CommandQueueDirect; }
-    CommandQueue &GetCommandQueueCompute() noexcept { return *m_CommandQueueCompute; }
-    CommandQueue &GetCommandQueueCopy() noexcept { return *m_CommandQueueCopy; }
-
-    constexpr UINT CurrentBackBufferIndex() const { return m_CurrentBackBufferIndex; }
-    PResource      CurrentBackBuffer() const { return m_BackBuffers[m_CurrentBackBufferIndex]; }
-    PSwapChain     SwapChain() const { return m_SwapChain; }
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE CurrentRTV() const
-    {
-        return CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_CurrentBackBufferIndex, m_RTVDescriptorSize);
-    }
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE BackRTV() const
-    {
-        return CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), BUFFER_COUNT, m_RTVDescriptorSize);
-    }
-
-    UINT Present()
-    {
-        UINT syncInterval = m_VSync ? 1 : 0;
-        UINT presentFlags = m_TearingSupported && !m_VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
-        Assert(m_SwapChain->Present(syncInterval, presentFlags));
-        m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
-
-        return m_CurrentBackBufferIndex;
-    }
-
-    UINT64 GetFrameCount() const noexcept { return m_FrameCount; }
+    int  Run(int nShowCmd);
+    UINT Present();
 };

@@ -93,11 +93,8 @@ Game::Game(Application *application, int width, int height)
 
     D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
     heapDesc.NumDescriptors             = 1;
-    heapDesc.Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+    heapDesc.Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
     heapDesc.Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    Assert(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_RTVHeap)));
-
-    heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
     Assert(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_DSVHeap)));
 
     heapDesc.Type  = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -150,10 +147,14 @@ void Game::ReloadShaders()
     Assert(D3DReadFileToBlob(L"Pixel1.cso", &pixelShader1Blob));
     Assert(D3DReadFileToBlob(L"Pixel2.cso", &pixelShader2Blob));
 
-    Assert(device->CreateRootSignature(
-        0, vertexShader1Blob->GetBufferPointer(), vertexShader1Blob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature1)));
-    Assert(device->CreateRootSignature(
-        0, vertexShader2Blob->GetBufferPointer(), vertexShader2Blob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature2)));
+    Assert(device->CreateRootSignature(0,
+                                       vertexShader1Blob->GetBufferPointer(),
+                                       vertexShader1Blob->GetBufferSize(),
+                                       IID_PPV_ARGS(m_RootSignature1.ReleaseAndGetAddressOf())));
+    Assert(device->CreateRootSignature(0,
+                                       vertexShader2Blob->GetBufferPointer(),
+                                       vertexShader2Blob->GetBufferSize(),
+                                       IID_PPV_ARGS(m_RootSignature2.ReleaseAndGetAddressOf())));
 
     D3D12_INPUT_ELEMENT_DESC inputLayout1[] = {
         {"POSITION",
@@ -195,10 +196,11 @@ void Game::ReloadShaders()
     gpsDesc.SampleDesc.Count               = 1;
     gpsDesc.SampleDesc.Quality             = 0;
 
-    Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(&m_PipelineStateLess)));
+    Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(m_PipelineStateLess.ReleaseAndGetAddressOf())));
 
     gpsDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
-    Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(&m_PipelineStateGreater)));
+    Assert(
+        device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(m_PipelineStateGreater.ReleaseAndGetAddressOf())));
 
     gpsDesc                 = {};
     gpsDesc.pRootSignature  = m_RootSignature2.Get();
@@ -216,7 +218,7 @@ void Game::ReloadShaders()
     // gpsDesc.DSVFormat;
     gpsDesc.SampleDesc.Count   = 1;
     gpsDesc.SampleDesc.Quality = 0;
-    Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(&m_PipelineStatePost)));
+    Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(m_PipelineStatePost.ReleaseAndGetAddressOf())));
 }
 
 void Game::UpdateBufferResource(PGraphicsCommandList commandList,
@@ -278,7 +280,7 @@ void Game::ResizeBuffers(int width, int height)
             DXGI_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET),
         D3D12_RESOURCE_STATE_GENERIC_READ,
         &colorClearValue,
-        IID_PPV_ARGS(&m_ColorBuffer)));
+        IID_PPV_ARGS(m_ColorBuffer.ReleaseAndGetAddressOf())));
 
     Assert(device->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -287,7 +289,7 @@ void Game::ResizeBuffers(int width, int height)
             DXGI_FORMAT_D32_FLOAT, width, height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
         &depthClearValue,
-        IID_PPV_ARGS(&m_DepthBuffer)));
+        IID_PPV_ARGS(m_DepthBuffer.ReleaseAndGetAddressOf())));
 
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
     rtvDesc.Format                        = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -309,7 +311,7 @@ void Game::ResizeBuffers(int width, int height)
     srvDesc.Texture2D.PlaneSlice            = 0;
     srvDesc.Texture2D.ResourceMinLODClamp   = 0.0f;
 
-    device->CreateRenderTargetView(m_ColorBuffer.Get(), &rtvDesc, m_RTVHeap->GetCPUDescriptorHandleForHeapStart());
+    device->CreateRenderTargetView(m_ColorBuffer.Get(), &rtvDesc, Application::Get()->IntermediateRTV());
     device->CreateDepthStencilView(m_DepthBuffer.Get(), &dsvDesc, m_DSVHeap->GetCPUDescriptorHandleForHeapStart());
     device->CreateShaderResourceView(
         m_ColorBuffer.Get(), &srvDesc, m_TextureHeap->GetCPUDescriptorHandleForHeapStart());
@@ -399,10 +401,10 @@ void Game::OnRender()
     CommandQueue        &commandQueue = Application::Get()->GetCommandQueueDirect();
     PGraphicsCommandList commandList  = commandQueue.GetCommandList();
 
-    UINT      currentBackBufferIndex = Application::Get()->CurrentBackBufferIndex();
-    PResource backBuffer             = Application::Get()->CurrentBackBuffer();
+    UINT      currentBackBufferIndex = Application::Get()->GetCurrentBackBufferIndex();
+    PResource backBuffer             = Application::Get()->GetCurrentBackBuffer();
     auto      outRtv                 = Application::Get()->CurrentRTV();
-    auto      rtv                    = m_RTVHeap->GetCPUDescriptorHandleForHeapStart();
+    auto      rtv                    = Application::Get()->IntermediateRTV();
     auto      dsv                    = m_DSVHeap->GetCPUDescriptorHandleForHeapStart();
 
     ID3D12DescriptorHeap *const heapsToSet[] = {m_TextureHeap.Get()};
@@ -433,7 +435,7 @@ void Game::OnRender()
     commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 
     commandList->SetGraphicsRootSignature(m_RootSignature1.Get());
-    commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView1);
     commandList->IASetIndexBuffer(&m_IndexBufferView1);
 
