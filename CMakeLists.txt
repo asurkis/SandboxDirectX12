@@ -19,8 +19,8 @@ set(CLASSES
     MyDXLib/CommandQueue
     MyDXLib/DescriptorHeap
     MyDXLib/MainWindow
-    MyDXLib/Mesh
-    MyDXLib/MeshData
+    MyDXLib/Scene
+    MyDXLib/SceneData
     MyDXLib/Utils
 )
 

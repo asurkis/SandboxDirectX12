@@ -2,8 +2,7 @@
 
 #include "pch.hpp"
 
-#include "MeshData.hpp"
-#include "Utils.hpp"
+class MeshData;
 
 class Mesh
 {

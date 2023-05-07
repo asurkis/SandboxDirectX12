@@ -1,4 +1,6 @@
-#include "Mesh.hpp"
+#include "Scene.hpp"
+#include "SceneData.hpp"
+#include "Utils.hpp"
 
 std::pair<PResource, PResource> Mesh::QueryInit(PGraphicsCommandList commandList, MeshData const &data)
 {

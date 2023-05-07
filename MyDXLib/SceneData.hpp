@@ -53,3 +53,8 @@ class MeshData
 
     static std::vector<MeshData> LoadFromFile(const char *path);
 };
+
+class MeshMaterialData
+{
+
+};

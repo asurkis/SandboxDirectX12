@@ -4,7 +4,7 @@
 
 #include "MyDXLib/Camera.hpp"
 #include "MyDXLib/DescriptorHeap.hpp"
-#include "MyDXLib/Mesh.hpp"
+#include "MyDXLib/Scene.hpp"
 #include "MyDXLib/Utils.hpp"
 
 class Application;

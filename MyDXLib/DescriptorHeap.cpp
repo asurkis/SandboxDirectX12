@@ -1,5 +1,4 @@
 #include "DescriptorHeap.hpp"
-
 #include "Utils.hpp"
 
 DescriptorHeap::DescriptorHeap()
