@@ -39,11 +39,11 @@ static const WORD g_CubeIndices[] = {
 static const XMFLOAT2 g_FullScreen[] = {
     XMFLOAT2(0.0f, 0.0f),
     XMFLOAT2(0.0f, 1.0f),
-    XMFLOAT2(1.0f, 0.0f),
     XMFLOAT2(1.0f, 1.0f),
+    XMFLOAT2(1.0f, 1.0f),
+    XMFLOAT2(1.0f, 0.0f),
+    XMFLOAT2(0.0f, 0.0f),
 };
-
-static const WORD g_FullScreenIndices[] = {0, 1, 2, 2, 1, 3};
 
 Game::Game(Application *application, int width, int height)
     : m_ScissorRect{0, 0, LONG_MAX, LONG_MAX},
@@ -56,12 +56,16 @@ Game::Game(Application *application, int width, int height)
 
     MeshData cubeData;
     MeshData fullScreenData;
+    MeshData sponzaData;
 
     cubeData.InitData(g_CubeVertices, _countof(g_CubeVertices), g_CubeIndices, _countof(g_CubeIndices));
-    fullScreenData.InitData(g_FullScreen, 4, g_FullScreenIndices, 6);
+    fullScreenData.InitVertices(g_FullScreen, 6);
+
+    sponzaData.LoadFromFile("c:/Users/asurk/Documents/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf");
 
     auto imm1 = m_CubeMesh.QueryInit(commandList, cubeData);
     auto imm2 = m_ScreenMesh.QueryInit(commandList, fullScreenData);
+    auto imm3 = m_SponzaMesh.QueryInit(commandList, sponzaData);
 
     m_DSVHeap = DescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
     m_TextureHeap
@@ -71,17 +75,6 @@ Game::Game(Application *application, int width, int height)
     featureData.HighestVersion                    = D3D_ROOT_SIGNATURE_VERSION_1_1;
     if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
         featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
-
-    D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
-                                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS
-                                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS
-                                     | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-
-    CD3DX12_ROOT_PARAMETER rootParameters[2] = {};
-    rootParameters[0].InitAsConstants(sizeof(XMMATRIX) / sizeof(FLOAT), 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-
-    CD3DX12_ROOT_SIGNATURE_DESC sigDesc = {};
-    sigDesc.Init(1, rootParameters, 0, nullptr, flags | D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS);
 
     ReloadShaders();
 
@@ -101,27 +94,35 @@ void Game::ReloadShaders()
     UINT compileFlags = 0;
 #endif
 
-    PBlob vertexShader1Blob;
-    PBlob vertexShader2Blob;
-    PBlob pixelShader1Blob;
-    PBlob pixelShader2Blob;
+    PBlob vertexShaderCubeBlob;
+    PBlob vertexShaderFilterBlob;
+    PBlob vertexShaderSponzaBlob;
+    PBlob pixelShaderCubeBlob;
+    PBlob pixelShaderFilterBlob;
+    PBlob pixelShaderSponzaBlob;
     PBlob errorBlob;
 
-    Assert(D3DReadFileToBlob(L"Vertex1.cso", &vertexShader1Blob));
-    Assert(D3DReadFileToBlob(L"Vertex2.cso", &vertexShader2Blob));
-    Assert(D3DReadFileToBlob(L"Pixel1.cso", &pixelShader1Blob));
-    Assert(D3DReadFileToBlob(L"Pixel2.cso", &pixelShader2Blob));
+    Assert(D3DReadFileToBlob(L"VertexCube.cso", &vertexShaderCubeBlob));
+    Assert(D3DReadFileToBlob(L"VertexSponza.cso", &vertexShaderSponzaBlob));
+    Assert(D3DReadFileToBlob(L"VertexFilter.cso", &vertexShaderFilterBlob));
+    Assert(D3DReadFileToBlob(L"PixelCube.cso", &pixelShaderCubeBlob));
+    Assert(D3DReadFileToBlob(L"PixelSponza.cso", &pixelShaderSponzaBlob));
+    Assert(D3DReadFileToBlob(L"PixelFilter.cso", &pixelShaderFilterBlob));
 
     Assert(device->CreateRootSignature(0,
-                                       vertexShader1Blob->GetBufferPointer(),
-                                       vertexShader1Blob->GetBufferSize(),
-                                       IID_PPV_ARGS(m_RootSignature1.ReleaseAndGetAddressOf())));
+                                       vertexShaderCubeBlob->GetBufferPointer(),
+                                       vertexShaderCubeBlob->GetBufferSize(),
+                                       IID_PPV_ARGS(m_RootSignatureCube.ReleaseAndGetAddressOf())));
     Assert(device->CreateRootSignature(0,
-                                       vertexShader2Blob->GetBufferPointer(),
-                                       vertexShader2Blob->GetBufferSize(),
-                                       IID_PPV_ARGS(m_RootSignature2.ReleaseAndGetAddressOf())));
+                                       vertexShaderSponzaBlob->GetBufferPointer(),
+                                       vertexShaderSponzaBlob->GetBufferSize(),
+                                       IID_PPV_ARGS(m_RootSignatureSponza.ReleaseAndGetAddressOf())));
+    Assert(device->CreateRootSignature(0,
+                                       vertexShaderFilterBlob->GetBufferPointer(),
+                                       vertexShaderFilterBlob->GetBufferSize(),
+                                       IID_PPV_ARGS(m_RootSignatureFilter.ReleaseAndGetAddressOf())));
 
-    D3D12_INPUT_ELEMENT_DESC inputLayout1[] = {
+    D3D12_INPUT_ELEMENT_DESC inputLayoutCube[] = {
         {"POSITION",
          0, DXGI_FORMAT_R32G32B32_FLOAT,
          0, D3D12_APPEND_ALIGNED_ELEMENT,
@@ -132,7 +133,18 @@ void Game::ReloadShaders()
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
 
-    D3D12_INPUT_ELEMENT_DESC inputLayout2[] = {
+    D3D12_INPUT_ELEMENT_DESC inputLayoutSponza[] = {
+        {"POSITION",
+         0, DXGI_FORMAT_R32G32B32_FLOAT,
+         0, D3D12_APPEND_ALIGNED_ELEMENT,
+         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"UV",
+         0, DXGI_FORMAT_R32G32_FLOAT,
+         0, D3D12_APPEND_ALIGNED_ELEMENT,
+         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+    };
+
+    D3D12_INPUT_ELEMENT_DESC inputLayoutFilter[] = {
         {"UV",
          0, DXGI_FORMAT_R32G32_FLOAT,
          0, D3D12_APPEND_ALIGNED_ELEMENT,
@@ -141,9 +153,9 @@ void Game::ReloadShaders()
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsDesc = {};
 
-    gpsDesc.pRootSignature    = m_RootSignature1.Get();
-    gpsDesc.VS                = CD3DX12_SHADER_BYTECODE(vertexShader1Blob.Get());
-    gpsDesc.PS                = CD3DX12_SHADER_BYTECODE(pixelShader1Blob.Get());
+    gpsDesc.pRootSignature    = m_RootSignatureCube.Get();
+    gpsDesc.VS                = CD3DX12_SHADER_BYTECODE(vertexShaderCubeBlob.Get());
+    gpsDesc.PS                = CD3DX12_SHADER_BYTECODE(pixelShaderCubeBlob.Get());
     gpsDesc.SampleMask        = UINT_MAX;
     gpsDesc.BlendState        = CD3DX12_BLEND_DESC(CD3DX12_DEFAULT());
     gpsDesc.RasterizerState   = CD3DX12_RASTERIZER_DESC(CD3DX12_DEFAULT());
@@ -152,8 +164,8 @@ void Game::ReloadShaders()
     // Для сравнения с reversed Z
     gpsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
-    gpsDesc.InputLayout.pInputElementDescs = inputLayout1;
-    gpsDesc.InputLayout.NumElements        = _countof(inputLayout1);
+    gpsDesc.InputLayout.pInputElementDescs = inputLayoutCube;
+    gpsDesc.InputLayout.NumElements        = _countof(inputLayoutCube);
     gpsDesc.PrimitiveTopologyType          = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     gpsDesc.NumRenderTargets               = 1;
     gpsDesc.RTVFormats[0]                  = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -161,29 +173,55 @@ void Game::ReloadShaders()
     gpsDesc.SampleDesc.Count               = 1;
     gpsDesc.SampleDesc.Quality             = 0;
 
-    Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(m_PipelineStateLess.ReleaseAndGetAddressOf())));
+    Assert(
+        device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(m_PipelineStateCubeLess.ReleaseAndGetAddressOf())));
 
     gpsDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
-    Assert(
-        device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(m_PipelineStateGreater.ReleaseAndGetAddressOf())));
+    Assert(device->CreateGraphicsPipelineState(&gpsDesc,
+                                               IID_PPV_ARGS(m_PipelineStateCubeGreater.ReleaseAndGetAddressOf())));
+
+    gpsDesc                   = {};
+    gpsDesc.pRootSignature    = m_RootSignatureSponza.Get();
+    gpsDesc.VS                = CD3DX12_SHADER_BYTECODE(vertexShaderSponzaBlob.Get());
+    gpsDesc.PS                = CD3DX12_SHADER_BYTECODE(pixelShaderSponzaBlob.Get());
+    gpsDesc.SampleMask        = UINT_MAX;
+    gpsDesc.BlendState        = CD3DX12_BLEND_DESC(CD3DX12_DEFAULT());
+    gpsDesc.RasterizerState   = CD3DX12_RASTERIZER_DESC(CD3DX12_DEFAULT());
+    gpsDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(CD3DX12_DEFAULT());
+
+    gpsDesc.InputLayout.pInputElementDescs = inputLayoutSponza;
+    gpsDesc.InputLayout.NumElements        = _countof(inputLayoutSponza);
+    gpsDesc.PrimitiveTopologyType          = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    gpsDesc.NumRenderTargets               = 1;
+    gpsDesc.RTVFormats[0]                  = DXGI_FORMAT_R8G8B8A8_UNORM;
+    gpsDesc.DSVFormat                      = DXGI_FORMAT_D32_FLOAT;
+    gpsDesc.SampleDesc.Count               = 1;
+    gpsDesc.SampleDesc.Quality             = 0;
+
+    Assert(device->CreateGraphicsPipelineState(&gpsDesc,
+                                               IID_PPV_ARGS(m_PipelineStateSponzaLess.ReleaseAndGetAddressOf())));
+
+    gpsDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
+    Assert(device->CreateGraphicsPipelineState(&gpsDesc,
+                                               IID_PPV_ARGS(m_PipelineStateSponzaGreater.ReleaseAndGetAddressOf())));
 
     gpsDesc                 = {};
-    gpsDesc.pRootSignature  = m_RootSignature2.Get();
-    gpsDesc.VS              = CD3DX12_SHADER_BYTECODE(vertexShader2Blob.Get());
-    gpsDesc.PS              = CD3DX12_SHADER_BYTECODE(pixelShader2Blob.Get());
+    gpsDesc.pRootSignature  = m_RootSignatureFilter.Get();
+    gpsDesc.VS              = CD3DX12_SHADER_BYTECODE(vertexShaderFilterBlob.Get());
+    gpsDesc.PS              = CD3DX12_SHADER_BYTECODE(pixelShaderFilterBlob.Get());
     gpsDesc.SampleMask      = UINT_MAX;
     gpsDesc.BlendState      = CD3DX12_BLEND_DESC(CD3DX12_DEFAULT());
     gpsDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(CD3DX12_DEFAULT());
     // gpsDesc.DepthStencilState;
-    gpsDesc.InputLayout.pInputElementDescs = inputLayout2;
-    gpsDesc.InputLayout.NumElements        = _countof(inputLayout2);
+    gpsDesc.InputLayout.pInputElementDescs = inputLayoutFilter;
+    gpsDesc.InputLayout.NumElements        = _countof(inputLayoutFilter);
     gpsDesc.PrimitiveTopologyType          = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     gpsDesc.NumRenderTargets               = 1;
     gpsDesc.RTVFormats[0]                  = DXGI_FORMAT_R8G8B8A8_UNORM;
     // gpsDesc.DSVFormat;
     gpsDesc.SampleDesc.Count   = 1;
     gpsDesc.SampleDesc.Quality = 0;
-    Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(m_PipelineStatePost.ReleaseAndGetAddressOf())));
+    Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(m_PipelineStateFilter.ReleaseAndGetAddressOf())));
 }
 
 void Game::UpdateBufferResource(PGraphicsCommandList commandList,
@@ -370,36 +408,41 @@ void Game::OnRender()
     commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
     commandList->ClearRenderTargetView(outRtv, clearColor, 0, nullptr);
 
-    if (m_ZLess)
-    {
-        commandList->SetPipelineState(m_PipelineStateLess.Get());
-        commandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-    }
-    else
-    {
-        commandList->SetPipelineState(m_PipelineStateGreater.Get());
-        commandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
-    }
-
     CD3DX12_VIEWPORT viewport(0.0f, 0.0f, static_cast<float>(m_Width), static_cast<float>(m_Height));
     commandList->RSSetViewports(1, &viewport);
     commandList->RSSetScissorRects(1, &m_ScissorRect);
     commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
-
-    commandList->SetGraphicsRootSignature(m_RootSignature1.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    XMMATRIX mvpMatrix = m_ModelMatrix * m_Camera.CalcMatrix();
-    commandList->SetGraphicsRoot32BitConstants(0, 16, &mvpMatrix, 0);
+    if (m_ZLess)
+    {
+        commandList->SetPipelineState(m_PipelineStateCubeLess.Get());
+        commandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+    }
+    else
+    {
+        commandList->SetPipelineState(m_PipelineStateCubeGreater.Get());
+        commandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
+    }
 
+    commandList->SetGraphicsRootSignature(m_RootSignatureCube.Get());
+
+    XMMATRIX cameraMatrix = m_Camera.CalcMatrix();
+    XMMATRIX mvpMatrix    = m_ModelMatrix * cameraMatrix;
+    commandList->SetGraphicsRoot32BitConstants(0, 16, &mvpMatrix, 0);
     m_CubeMesh.Draw(commandList);
+
+    commandList->SetPipelineState((m_ZLess ? m_PipelineStateSponzaLess : m_PipelineStateSponzaGreater).Get());
+    commandList->SetGraphicsRootSignature(m_RootSignatureSponza.Get());
+    commandList->SetGraphicsRoot32BitConstants(0, 16, &mvpMatrix, 0);
+    m_SponzaMesh.Draw(commandList);
 
     TransitionResource(
         commandList, m_ColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
 
     commandList->OMSetRenderTargets(1, &outRtv, FALSE, nullptr);
-    commandList->SetPipelineState(m_PipelineStatePost.Get());
-    commandList->SetGraphicsRootSignature(m_RootSignature2.Get());
+    commandList->SetPipelineState(m_PipelineStateFilter.Get());
+    commandList->SetGraphicsRootSignature(m_RootSignatureFilter.Get());
 
     commandList->SetGraphicsRootDescriptorTable(1, m_TextureHeap.GetGPUStart());
 

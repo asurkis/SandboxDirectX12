@@ -4,10 +4,12 @@ set(CMAKE_CXX_STANDARD 17)
 add_subdirectory(DirectX-Headers)
 
 set(SHADER_FILES 
-    Vertex1.hlsl 
-    Vertex2.hlsl 
-    Pixel1.hlsl
-    Pixel2.hlsl
+    VertexCube.hlsl 
+    VertexSponza.hlsl 
+    VertexFilter.hlsl 
+    PixelCube.hlsl
+    PixelSponza.hlsl
+    PixelFilter.hlsl
 )
 
 set(CLASSES
@@ -26,10 +28,12 @@ find_package(assimp REQUIRED)
 
 add_custom_target(Shaders SOURCES ${SHADER_FILES})
 
-set_source_files_properties( Vertex1.hlsl PROPERTIES ShaderType vs VS_SHADER_TYPE Vertex )
-set_source_files_properties( Vertex2.hlsl PROPERTIES ShaderType vs VS_SHADER_TYPE Vertex )
-set_source_files_properties(  Pixel1.hlsl PROPERTIES ShaderType ps VS_SHADER_TYPE  Pixel )
-set_source_files_properties(  Pixel2.hlsl PROPERTIES ShaderType ps VS_SHADER_TYPE  Pixel )
+set_source_files_properties( VertexCube.hlsl   PROPERTIES ShaderType vs VS_SHADER_TYPE Vertex )
+set_source_files_properties( VertexSponza.hlsl PROPERTIES ShaderType vs VS_SHADER_TYPE Vertex )
+set_source_files_properties( VertexFilter.hlsl PROPERTIES ShaderType vs VS_SHADER_TYPE Vertex )
+set_source_files_properties(  PixelCube.hlsl   PROPERTIES ShaderType ps VS_SHADER_TYPE  Pixel )
+set_source_files_properties(  PixelSponza.hlsl PROPERTIES ShaderType ps VS_SHADER_TYPE  Pixel )
+set_source_files_properties(  PixelFilter.hlsl PROPERTIES ShaderType ps VS_SHADER_TYPE  Pixel )
 
 foreach(FILE ${SHADER_FILES})
     set_source_files_properties(${FILE} PROPERTIES VS_SHADER_MODEL 6.0)

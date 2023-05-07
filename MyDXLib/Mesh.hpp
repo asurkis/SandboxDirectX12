@@ -8,17 +8,18 @@
 class Mesh
 {
     PResource                m_VertexBuffer;
-    D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView;
+    D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView = {};
     PResource                m_IndexBuffer;
-    D3D12_INDEX_BUFFER_VIEW  m_IndexBufferView;
+    D3D12_INDEX_BUFFER_VIEW  m_IndexBufferView = {};
 
-    size_t m_VertexCount;
-    size_t m_IndexCount;
+    size_t m_VertexCount = 0;
+    size_t m_IndexCount  = 0;
+    bool   m_UseIndex    = false;
 
   public:
     const D3D12_VERTEX_BUFFER_VIEW &GetVertexView() const noexcept { return m_VertexBufferView; }
     const D3D12_INDEX_BUFFER_VIEW  &GetIndexView() const noexcept { return m_IndexBufferView; }
 
     std::pair<PResource, PResource> QueryInit(PGraphicsCommandList commandList, MeshData const &data);
-    void Draw(PGraphicsCommandList commandList);
+    void                            Draw(PGraphicsCommandList commandList);
 };

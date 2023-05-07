@@ -14,17 +14,24 @@ class Game
     Mesh m_CubeMesh;
     Mesh m_ScreenMesh;
 
+    Mesh m_SponzaMesh;
+
     PResource m_ColorBuffer;
     PResource m_DepthBuffer;
 
     DescriptorHeap m_DSVHeap;
     DescriptorHeap m_TextureHeap;
 
-    PRootSignature m_RootSignature1;
-    PRootSignature m_RootSignature2;
-    PPipelineState m_PipelineStateLess;
-    PPipelineState m_PipelineStateGreater;
-    PPipelineState m_PipelineStatePost;
+    PRootSignature m_RootSignatureCube;
+    PRootSignature m_RootSignatureFilter;
+    PRootSignature m_RootSignatureSponza;
+
+    PPipelineState m_PipelineStateCubeLess;
+    PPipelineState m_PipelineStateCubeGreater;
+    PPipelineState m_PipelineStateSponzaLess;
+    PPipelineState m_PipelineStateSponzaGreater;
+
+    PPipelineState m_PipelineStateFilter;
     D3D12_RECT     m_ScissorRect;
 
     DirectX::XMMATRIX m_ModelMatrix;

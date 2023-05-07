@@ -37,5 +37,6 @@ bool IsPrime(int x)
               + 2 * Frame.Load(int3(pos + int2(+0, 1), 0)) - 2 * Frame.Load(int3(pos + int2(+0, -1), 0))
               + 1 * Frame.Load(int3(pos + int2(+1, 1), 0)) - 1 * Frame.Load(int3(pos + int2(+1, -1), 0));
 
-    return float4(sqrt(gx.rgb * gx.rgb + gy.rgb * gy.rgb), 1.0f);
+    // return float4(sqrt(gx.rgb * gx.rgb + gy.rgb * gy.rgb), 1.0f);
+    return Frame.Load(int3(pos, 0));
 }
