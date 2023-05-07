@@ -17,12 +17,13 @@ class MeshData
     MeshData(MeshData &&)                 = default;
     MeshData &operator=(MeshData const &) = default;
     MeshData &operator=(MeshData &&)      = default;
+    virtual ~MeshData() {}
 
     template <typename V, typename I>
-    void InitData(V const *vertexData, size_t nVertices, I const *indexData, size_t nIndices)
+    void InitData(const V *vertexData, size_t nVertices, const I *indexData, size_t nIndices)
     {
-        char const *pVertices = static_cast<char const *>(static_cast<void const *>(vertexData));
-        char const *pIndices  = static_cast<char const *>(static_cast<void const *>(indexData));
+        char const *pVertices = static_cast<const char *>(static_cast<const void *>(vertexData));
+        char const *pIndices  = static_cast<const char *>(static_cast<const void *>(indexData));
         m_VertexCount         = nVertices;
         m_VertexSize          = sizeof(V);
         m_IndexCount          = nIndices;
@@ -31,7 +32,7 @@ class MeshData
         m_IndexBuffer         = std::vector(pIndices, pIndices + sizeof(I) * nIndices);
     }
 
-    template <typename V> void InitVertices(V const *vertexData, size_t nVertices)
+    template <typename V> void InitVertices(const V *vertexData, size_t nVertices)
     {
         char const *pVertices = static_cast<char const *>(static_cast<void const *>(vertexData));
         m_VertexCount         = nVertices;
@@ -50,11 +51,30 @@ class MeshData
     constexpr size_t SingleIndexSize() const noexcept { return m_IndexSize; }
     constexpr size_t VertexCount() const noexcept { return m_VertexCount; }
     constexpr size_t IndexCount() const noexcept { return m_IndexCount; }
-
-    static std::vector<MeshData> LoadFromFile(const char *path);
 };
 
-class MeshMaterialData
+class MaterialData
 {
+};
 
+class MeshMaterialData : public MeshData
+{
+  public:
+    MeshMaterialData()                                    = default;
+    MeshMaterialData(MeshMaterialData const &)            = default;
+    MeshMaterialData(MeshMaterialData &&)                 = default;
+    MeshMaterialData &operator=(MeshMaterialData const &) = default;
+    MeshMaterialData &operator=(MeshMaterialData &&)      = default;
+};
+
+class SceneData
+{
+    std::vector<MeshMaterialData> m_Meshes;
+    std::vector<MaterialData>     m_Materials;
+
+  public:
+    const std::vector<MeshMaterialData> &GetMeshes() const noexcept { return m_Meshes; }
+    const std::vector<MaterialData>     &GetMaterials() const noexcept { return m_Materials; }
+
+    static SceneData LoadFromFile(const char *path);
 };

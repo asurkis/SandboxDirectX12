@@ -3,6 +3,7 @@
 #include "pch.hpp"
 
 class MeshData;
+class SceneData;
 
 class Mesh
 {
@@ -19,6 +20,15 @@ class Mesh
     const D3D12_VERTEX_BUFFER_VIEW &GetVertexView() const noexcept { return m_VertexBufferView; }
     const D3D12_INDEX_BUFFER_VIEW  &GetIndexView() const noexcept { return m_IndexBufferView; }
 
-    std::pair<PResource, PResource> QueryInit(PGraphicsCommandList commandList, MeshData const &data);
+    std::pair<PResource, PResource> QueryInit(PGraphicsCommandList commandList, const MeshData &data);
     void                            Draw(PGraphicsCommandList commandList);
+};
+
+class Scene
+{
+    std::vector<Mesh> m_Meshes;
+
+  public:
+    std::vector<PResource> QueryInit(PGraphicsCommandList commandList, const SceneData &data);
+    void                   Draw(PGraphicsCommandList commandList);
 };

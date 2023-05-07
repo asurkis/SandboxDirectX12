@@ -1,7 +1,7 @@
 #include "Game.hpp"
-
 #include "Application.hpp"
 #include "MyDXLib/DescriptorHeap.hpp"
+#include "MyDXLib/SceneData.hpp"
 #include <cmath>
 
 using namespace DirectX;
@@ -61,17 +61,13 @@ Game::Game(Application *application, int width, int height)
     cubeData.InitData(g_CubeVertices, _countof(g_CubeVertices), g_CubeIndices, _countof(g_CubeIndices));
     fullScreenData.InitVertices(g_FullScreen, 6);
 
-    std::vector<MeshData> sponzaData
-        = MeshData::LoadFromFile("c:/Users/asurk/Documents/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf");
+    SceneData sponzaData
+        = SceneData::LoadFromFile("c:/Users/asurk/Documents/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf");
     // sponzaData.LoadFromFile("c:/Users/asurk/Documents/monkey.obj");
 
     auto imm1 = m_CubeMesh.QueryInit(commandList, cubeData);
     auto imm2 = m_ScreenMesh.QueryInit(commandList, fullScreenData);
-
-    std::vector<std::pair<PResource, PResource>> imm3(sponzaData.size());
-    m_SponzaMesh.resize(sponzaData.size());
-    for (size_t i = 0; i < sponzaData.size(); ++i)
-        imm3[i] = m_SponzaMesh[i].QueryInit(commandList, sponzaData[i]);
+    auto imm3 = m_SponzaScene.QueryInit(commandList, sponzaData);
 
     m_DSVHeap = DescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
     m_TextureHeap
@@ -88,7 +84,7 @@ Game::Game(Application *application, int width, int height)
     m_ContentLoaded = true;
     ResizeBuffers(width, height);
 
-    m_Camera.Pos = XMFLOAT3(0.0f, 0.0f, -5.0f);
+    m_Camera.Pos = XMFLOAT3(0.0f, 0.0f, 0.0f);
     m_Camera.Rot = XMFLOAT3(0.0f, 0.0f, 0.0f);
 }
 
@@ -477,8 +473,7 @@ void Game::OnRender()
     commandList->SetPipelineState((m_ZLess ? m_PipelineStateSponzaLess : m_PipelineStateSponzaGreater).Get());
     commandList->SetGraphicsRootSignature(m_RootSignatureSponza.Get());
     commandList->SetGraphicsRoot32BitConstants(0, 16, &cameraMatrix, 0);
-    for (size_t i = 0; i < m_SponzaMesh.size(); ++i)
-        m_SponzaMesh[i].Draw(commandList);
+    m_SponzaScene.Draw(commandList);
 
     TransitionResource(
         commandList, m_ColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);

@@ -21,7 +21,7 @@ struct VertexShaderOutput
 
 [RootSignature(ROOT_SIGNATURE_1)] VertexShaderOutput main(VertexPosColor IN) {
     VertexShaderOutput OUT;
-    OUT.Position = mul(ModelViewProjectionCB.MVP, float4(0.01f * IN.Position, 1.0f));
+    OUT.Position = mul(ModelViewProjectionCB.MVP, float4(0.005f * IN.Position, 1.0f));
 
     OUT.UV = IN.UV;
     return OUT;

@@ -2,7 +2,7 @@
 #include "SceneData.hpp"
 #include "Utils.hpp"
 
-std::pair<PResource, PResource> Mesh::QueryInit(PGraphicsCommandList commandList, MeshData const &data)
+std::pair<PResource, PResource> Mesh::QueryInit(PGraphicsCommandList commandList, const MeshData &data)
 {
     DXGI_FORMAT indexFormat = DXGI_FORMAT_UNKNOWN;
     switch (data.SingleIndexSize())
@@ -59,4 +59,25 @@ void Mesh::Draw(PGraphicsCommandList commandList)
     {
         commandList->DrawInstanced(m_VertexCount, 1, 0, 0);
     }
+}
+
+std::vector<PResource> Scene::QueryInit(PGraphicsCommandList commandList, const SceneData &data)
+{
+    auto &&meshData = data.GetMeshes();
+    m_Meshes.resize(meshData.size());
+
+    std::vector<PResource> immediate;
+    for (std::size_t i = 0; i < meshData.size(); ++i)
+    {
+        auto [imm1, imm2] = m_Meshes[i].QueryInit(commandList, meshData[i]);
+        immediate.push_back(std::move(imm1));
+        immediate.push_back(std::move(imm2));
+    }
+    return immediate;
+}
+
+void Scene::Draw(PGraphicsCommandList commandList)
+{
+    for (auto &&mesh : m_Meshes)
+        mesh.Draw(commandList);
 }

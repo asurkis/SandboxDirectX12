@@ -1,5 +1,6 @@
 #include "SceneData.hpp"
 #include <assimp/Importer.hpp>
+#include <assimp/material.h>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 
@@ -9,7 +10,7 @@ struct PosUV
     aiVector2D uv;
 };
 
-std::vector<MeshData> MeshData::LoadFromFile(const char *path)
+SceneData SceneData::LoadFromFile(const char *path)
 {
     unsigned int importFlags = aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate
                              | aiProcess_PreTransformVertices | aiProcess_ValidateDataStructure
@@ -22,7 +23,8 @@ std::vector<MeshData> MeshData::LoadFromFile(const char *path)
     if (!scene)
         throw std::exception("Couldn't read scene from file");
 
-    std::vector<MeshData> result(scene->mNumMeshes);
+    SceneData result;
+    result.m_Meshes.resize(scene->mNumMeshes);
 
     for (size_t i = 0; i < scene->mNumMeshes; ++i)
     {
@@ -55,7 +57,7 @@ std::vector<MeshData> MeshData::LoadFromFile(const char *path)
                 indices.push_back(face.mIndices[k]);
         }
 
-        result[i].InitData(vertices.data(), vertices.size(), indices.data(), indices.size());
+        result.m_Meshes[i].InitData(vertices.data(), vertices.size(), indices.data(), indices.size());
     }
 
     return result;
