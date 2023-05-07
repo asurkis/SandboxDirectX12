@@ -40,6 +40,9 @@ class Game
     int m_Width;
     int m_Height;
 
+    int m_LastMouseX = 0;
+    int m_LastMouseY = 0;
+
     bool m_ContentLoaded = false;
 
   public:
@@ -57,12 +60,19 @@ class Game
     void ResizeBuffers(int width, int height);
 
     void OnResize(int width, int height);
+    void OnMouseDown(int x, int y);
+    void OnMouseDrag(int x, int y);
     void OnUpdate();
     void OnRender();
 
     int    m_FovStep       = 0;
     double m_ShakeStrength = 0.0;
     bool   m_ZLess         = true;
+
+    bool m_MoveForward = false;
+    bool m_MoveBack    = false;
+    bool m_MoveLeft    = false;
+    bool m_MoveRight   = false;
 
     void TransitionResource(PGraphicsCommandList  commandList,
                             PResource             resource,

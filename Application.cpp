@@ -1,5 +1,7 @@
 #include "Application.hpp"
 
+#include <windowsx.h>
+
 Application::Application(HINSTANCE hInstance)
     : m_WindowClass(hInstance, L"DX12WindowClass", &Application::WndProc),
       m_Window(m_WindowClass, L"Main Window Title", 1280, 720)
@@ -58,14 +60,29 @@ LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 
         case VK_OEM_MINUS: g_Instance->m_Game->m_FovStep--; break;
         case VK_OEM_PLUS: g_Instance->m_Game->m_FovStep++; break;
-        case '0': g_Instance->m_Game->m_FovStep = 0; break;
         case VK_SPACE: g_Instance->m_Game->m_ShakeStrength = 1.0; break;
+        case '0': g_Instance->m_Game->m_FovStep = 0; break;
         case 'Z': g_Instance->m_Game->m_ZLess ^= true; break;
-
         case 'R': g_Instance->m_Game->ReloadShaders(); break;
+
+        case 'W': g_Instance->m_Game->m_MoveForward = true; break;
+        case 'A': g_Instance->m_Game->m_MoveLeft = true; break;
+        case 'S': g_Instance->m_Game->m_MoveBack = true; break;
+        case 'D': g_Instance->m_Game->m_MoveRight = true; break;
         }
         break;
     }
+
+    case WM_SYSKEYUP:
+    case WM_KEYUP:
+        switch (wParam)
+        {
+        case 'W': g_Instance->m_Game->m_MoveForward = false; break;
+        case 'A': g_Instance->m_Game->m_MoveLeft = false; break;
+        case 'S': g_Instance->m_Game->m_MoveBack = false; break;
+        case 'D': g_Instance->m_Game->m_MoveRight = false; break;
+        }
+        break;
 
     case WM_SYSCHAR: break;
 
@@ -77,6 +94,14 @@ LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
         g_Instance->OnResize(width, height);
         break;
     }
+
+    case WM_LBUTTONDOWN: g_Instance->m_Game->OnMouseDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)); break;
+
+    case WM_MOUSEMOVE:
+        if ((wParam & MK_LBUTTON) == 0)
+            break;
+        g_Instance->m_Game->OnMouseDrag(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        break;
 
     default: return DefWindowProcW(hWnd, uMsg, wParam, lParam);
     }

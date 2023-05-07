@@ -2,6 +2,7 @@
 
 #include "Application.hpp"
 #include "MyDXLib/DescriptorHeap.hpp"
+#include <cmath>
 
 using namespace DirectX;
 
@@ -81,6 +82,9 @@ Game::Game(Application *application, int width, int height)
     commandQueue.ExecuteAndWait(commandList);
     m_ContentLoaded = true;
     ResizeBuffers(width, height);
+
+    m_Camera.Pos = XMFLOAT3(0.0f, 0.0f, -5.0f);
+    m_Camera.Rot = XMFLOAT3(0.0f, 0.0f, 0.0f);
 }
 
 void Game::ReloadShaders()
@@ -328,6 +332,27 @@ void Game::OnResize(int width, int height)
     m_Height = height;
 }
 
+void Game::OnMouseDown(int x, int y)
+{
+    m_LastMouseX = x;
+    m_LastMouseY = y;
+}
+
+void Game::OnMouseDrag(int x, int y)
+{
+    constexpr float PI          = 3.14159265358979323846f;
+    int             dx          = x - m_LastMouseX;
+    int             dy          = y - m_LastMouseY;
+    float           aspectRatio = m_Width / static_cast<float>(m_Height);
+    m_Camera.Rot.x += 2.0f * PI * dy / static_cast<float>(m_Height);
+    m_Camera.Rot.y -= 2.0f * PI * aspectRatio * dx / static_cast<float>(m_Width);
+
+    m_Camera.Rot.x = (std::max)(-0.5f * 3.14159265358979323846f, (std::min)(0.5f * PI, m_Camera.Rot.x));
+
+    m_LastMouseX = x;
+    m_LastMouseY = y;
+}
+
 void Game::OnUpdate()
 {
     static uint64_t                           frameCounter = 0;
@@ -344,6 +369,20 @@ void Game::OnUpdate()
     double dt = std::chrono::duration<double>(t1 - t0).count();
     t0        = t1;
 
+    XMVECTOR pos     = XMLoadFloat3(&m_Camera.Pos);
+    XMVECTOR forward = m_Camera.Forward();
+    XMVECTOR right   = m_Camera.Right();
+    if (m_MoveForward)
+        pos += dt * forward;
+    if (m_MoveBack)
+        pos -= dt * forward;
+    if (m_MoveLeft)
+        pos -= dt * right;
+    if (m_MoveRight)
+        pos += dt * right;
+
+    XMStoreFloat3(&m_Camera.Pos, pos);
+
     double elapsedSeconds = std::chrono::duration<double>(t1 - tSecond).count();
     if (elapsedSeconds > 1.0)
     {
@@ -358,9 +397,6 @@ void Game::OnUpdate()
     double   angle        = timeTotal;
     XMVECTOR rotationAxis = XMVectorSet(0, 1, 1, 0);
     m_ModelMatrix         = DirectX::XMMatrixRotationAxis(rotationAxis, static_cast<float>(angle));
-
-    m_Camera.Pos = XMFLOAT3(0.0f, 0.0f, -5.0f);
-    m_Camera.Rot = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
     double aspectRatio = m_Width / static_cast<double>(m_Height);
 
@@ -382,7 +418,7 @@ void Game::OnUpdate()
     }
 
     m_Camera.xyz1 = XMFLOAT3((shiftX - tanFov) * aspectRatio, shiftY - tanFov, 0.1f);
-    m_Camera.xyz2 = XMFLOAT3((shiftX + tanFov) * aspectRatio, shiftY + tanFov, 100.0f);
+    m_Camera.xyz2 = XMFLOAT3((shiftX + tanFov) * aspectRatio, shiftY + tanFov, 1000.0f);
     m_ShakeStrength *= exp(-dt);
 }
 
@@ -434,7 +470,7 @@ void Game::OnRender()
 
     commandList->SetPipelineState((m_ZLess ? m_PipelineStateSponzaLess : m_PipelineStateSponzaGreater).Get());
     commandList->SetGraphicsRootSignature(m_RootSignatureSponza.Get());
-    commandList->SetGraphicsRoot32BitConstants(0, 16, &mvpMatrix, 0);
+    commandList->SetGraphicsRoot32BitConstants(0, 16, &cameraMatrix, 0);
     m_SponzaMesh.Draw(commandList);
 
     TransitionResource(
