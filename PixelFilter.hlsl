@@ -27,7 +27,7 @@ bool IsPrime(int x)
     : SV_Target
 {
     // return Frame.Load(IN.UV);
-    int2 pos = ScreenSizeCB.Size * IN.UV;
+    int2 pos = ScreenSizeCB.Size * (IN.UV * float2(1.0f, -1.0f) + float2(0.0f, 1.0f));
 
     float4 gx = 1 * Frame.Load(int3(pos + int2(1, -1), 0)) - 1 * Frame.Load(int3(pos + int2(-1, -1), 0))
               + 2 * Frame.Load(int3(pos + int2(1, +0), 0)) - 2 * Frame.Load(int3(pos + int2(-1, +0), 0))

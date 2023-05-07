@@ -51,5 +51,5 @@ class MeshData
     constexpr size_t VertexCount() const noexcept { return m_VertexCount; }
     constexpr size_t IndexCount() const noexcept { return m_IndexCount; }
 
-    void LoadFromFile(const char *path);
+    static std::vector<MeshData> LoadFromFile(const char *path);
 };

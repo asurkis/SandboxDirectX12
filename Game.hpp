@@ -14,7 +14,7 @@ class Game
     Mesh m_CubeMesh;
     Mesh m_ScreenMesh;
 
-    Mesh m_SponzaMesh;
+    std::vector<Mesh> m_SponzaMesh;
 
     PResource m_ColorBuffer;
     PResource m_DepthBuffer;

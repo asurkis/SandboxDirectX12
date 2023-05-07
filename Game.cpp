@@ -57,16 +57,21 @@ Game::Game(Application *application, int width, int height)
 
     MeshData cubeData;
     MeshData fullScreenData;
-    MeshData sponzaData;
 
     cubeData.InitData(g_CubeVertices, _countof(g_CubeVertices), g_CubeIndices, _countof(g_CubeIndices));
     fullScreenData.InitVertices(g_FullScreen, 6);
 
-    sponzaData.LoadFromFile("c:/Users/asurk/Documents/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf");
+    std::vector<MeshData> sponzaData
+        = MeshData::LoadFromFile("c:/Users/asurk/Documents/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf");
+    // sponzaData.LoadFromFile("c:/Users/asurk/Documents/monkey.obj");
 
     auto imm1 = m_CubeMesh.QueryInit(commandList, cubeData);
     auto imm2 = m_ScreenMesh.QueryInit(commandList, fullScreenData);
-    auto imm3 = m_SponzaMesh.QueryInit(commandList, sponzaData);
+
+    std::vector<std::pair<PResource, PResource>> imm3(sponzaData.size());
+    m_SponzaMesh.resize(sponzaData.size());
+    for (size_t i = 0; i < sponzaData.size(); ++i)
+        imm3[i] = m_SponzaMesh[i].QueryInit(commandList, sponzaData[i]);
 
     m_DSVHeap = DescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
     m_TextureHeap
@@ -340,11 +345,12 @@ void Game::OnMouseDown(int x, int y)
 
 void Game::OnMouseDrag(int x, int y)
 {
-    constexpr float PI          = 3.14159265358979323846f;
-    int             dx          = x - m_LastMouseX;
-    int             dy          = y - m_LastMouseY;
-    float           aspectRatio = m_Width / static_cast<float>(m_Height);
-    m_Camera.Rot.x += 2.0f * PI * dy / static_cast<float>(m_Height);
+    constexpr float PI = 3.14159265358979323846f;
+
+    int   dx          = x - m_LastMouseX;
+    int   dy          = y - m_LastMouseY;
+    float aspectRatio = m_Width / static_cast<float>(m_Height);
+    m_Camera.Rot.x -= 2.0f * PI * dy / static_cast<float>(m_Height);
     m_Camera.Rot.y -= 2.0f * PI * aspectRatio * dx / static_cast<float>(m_Width);
 
     m_Camera.Rot.x = (std::max)(-0.5f * 3.14159265358979323846f, (std::min)(0.5f * PI, m_Camera.Rot.x));
@@ -370,16 +376,16 @@ void Game::OnUpdate()
     t0        = t1;
 
     XMVECTOR pos     = XMLoadFloat3(&m_Camera.Pos);
-    XMVECTOR forward = m_Camera.Forward();
-    XMVECTOR right   = m_Camera.Right();
+    XMVECTOR forward = dt * m_Camera.Forward();
+    XMVECTOR right   = dt * m_Camera.Right();
     if (m_MoveForward)
-        pos += dt * forward;
+        pos += forward;
     if (m_MoveBack)
-        pos -= dt * forward;
+        pos -= forward;
     if (m_MoveLeft)
-        pos -= dt * right;
+        pos -= right;
     if (m_MoveRight)
-        pos += dt * right;
+        pos += right;
 
     XMStoreFloat3(&m_Camera.Pos, pos);
 
@@ -466,12 +472,13 @@ void Game::OnRender()
     XMMATRIX cameraMatrix = m_Camera.CalcMatrix();
     XMMATRIX mvpMatrix    = m_ModelMatrix * cameraMatrix;
     commandList->SetGraphicsRoot32BitConstants(0, 16, &mvpMatrix, 0);
-    m_CubeMesh.Draw(commandList);
+    // m_CubeMesh.Draw(commandList);
 
     commandList->SetPipelineState((m_ZLess ? m_PipelineStateSponzaLess : m_PipelineStateSponzaGreater).Get());
     commandList->SetGraphicsRootSignature(m_RootSignatureSponza.Get());
     commandList->SetGraphicsRoot32BitConstants(0, 16, &cameraMatrix, 0);
-    m_SponzaMesh.Draw(commandList);
+    for (size_t i = 0; i < m_SponzaMesh.size(); ++i)
+        m_SponzaMesh[i].Draw(commandList);
 
     TransitionResource(
         commandList, m_ColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
