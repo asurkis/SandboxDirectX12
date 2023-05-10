@@ -2,13 +2,11 @@
 #include "SceneData.hpp"
 #include "Utils.hpp"
 
-void Material::QueryInit(PGraphicsCommandList commandList, const MaterialData &data) {}
+void Material::QueryInit(ResourceUploadBatch &rub, const MaterialData &data) {}
 
 void Material::Draw(PGraphicsCommandList commandList) {}
 
-std::pair<PResource, PResource> Mesh::QueryInit(PGraphicsCommandList commandList,
-                                                const MeshData      &data,
-                                                const Material      *material)
+void Mesh::QueryInit(PDevice device, ResourceUploadBatch &rub, const MeshData &data, const Material *material)
 {
     DXGI_FORMAT indexFormat = DXGI_FORMAT_UNKNOWN;
     switch (data.SingleIndexSize())
@@ -22,24 +20,12 @@ std::pair<PResource, PResource> Mesh::QueryInit(PGraphicsCommandList commandList
     if (m_UseIndex && indexFormat == DXGI_FORMAT_UNKNOWN)
         throw std::exception("Unknown index format");
 
-    PDevice device;
-    Assert(commandList->GetDevice(IID_PPV_ARGS(&device)));
-
     m_VertexCount = data.VertexCount();
     m_IndexCount  = data.IndexCount();
 
-    auto [outVertices, immVertices] = QueryUploadBuffer(commandList, data.VertexBufferStart(), data.VertexBufferSize());
-    PResource outIndices, immIndices;
+    m_VertexBuffer = QueryUploadBuffer(device, rub, data.VertexBufferStart(), data.VertexBufferSize());
     if (m_UseIndex)
-    {
-        auto [outIndices1, immIndices1]
-            = QueryUploadBuffer(commandList, data.IndexBufferStart(), data.IndexBufferSize());
-        outIndices = std::move(outIndices1);
-        immIndices = std::move(immIndices1);
-    }
-
-    m_VertexBuffer = std::move(outVertices);
-    m_IndexBuffer  = std::move(outIndices);
+        m_IndexBuffer = QueryUploadBuffer(device, rub, data.IndexBufferStart(), data.IndexBufferSize());
 
     m_VertexBufferView.BufferLocation = m_VertexBuffer->GetGPUVirtualAddress();
     m_VertexBufferView.SizeInBytes    = static_cast<UINT>(data.VertexBufferSize());
@@ -52,8 +38,6 @@ std::pair<PResource, PResource> Mesh::QueryInit(PGraphicsCommandList commandList
 
     m_Material      = material;
     m_MaterialIndex = data.m_MaterialIndex;
-
-    return std::make_pair(std::move(immVertices), std::move(immIndices));
 }
 
 void Mesh::Draw(PGraphicsCommandList commandList)
@@ -70,7 +54,7 @@ void Mesh::Draw(PGraphicsCommandList commandList)
     }
 }
 
-std::vector<PResource> Scene::QueryInit(PGraphicsCommandList commandList, const SceneData &data)
+void Scene::QueryInit(PDevice device, ResourceUploadBatch &rub, const SceneData &data)
 {
     auto &&materialData = data.GetMaterials();
     auto &&meshData     = data.GetMeshes();
@@ -78,18 +62,10 @@ std::vector<PResource> Scene::QueryInit(PGraphicsCommandList commandList, const 
     m_Materials.resize(materialData.size());
     m_Meshes.resize(meshData.size());
 
-    std::vector<PResource> immediate;
-
     for (std::size_t i = 0; i < materialData.size(); ++i) {}
 
     for (std::size_t i = 0; i < meshData.size(); ++i)
-    {
-        auto [imm1, imm2] = m_Meshes[i].QueryInit(commandList, meshData[i], &m_Materials[meshData[i].m_MaterialIndex]);
-        immediate.push_back(std::move(imm1));
-        immediate.push_back(std::move(imm2));
-    }
-
-    return immediate;
+        m_Meshes[i].QueryInit(device, rub, meshData[i], &m_Materials[meshData[i].m_MaterialIndex]);
 }
 
 void Scene::Draw(PGraphicsCommandList commandList)

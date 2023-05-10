@@ -10,8 +10,8 @@ class Application;
 
 class Game
 {
-    Mesh m_CubeMesh;
-    Mesh m_ScreenMesh;
+    Mesh  m_CubeMesh;
+    Mesh  m_ScreenMesh;
     Scene m_SponzaScene;
 
     PResource m_ColorBuffer;
@@ -47,14 +47,6 @@ class Game
     Game(Application *application, int width, int height);
 
     void ReloadShaders();
-
-    void UpdateBufferResource(PGraphicsCommandList commandList,
-                              ID3D12Resource     **destinationResource,
-                              ID3D12Resource     **intermediateResource,
-                              size_t               numElements,
-                              size_t               elementSize,
-                              const void          *bufferData,
-                              D3D12_RESOURCE_FLAGS flags);
     void ResizeBuffers(int width, int height);
 
     void OnResize(int width, int height);

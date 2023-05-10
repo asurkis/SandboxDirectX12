@@ -1,12 +1,9 @@
 #include "Utils.hpp"
 
-std::pair<PResource, PResource> QueryUploadBuffer(PGraphicsCommandList commandList, const void *data, size_t bufSize)
+PResource QueryUploadBuffer(PDevice device, ResourceUploadBatch &rub, const void *data, size_t bufSize)
 {
-    PDevice   device;
     PResource buffer;
     PResource intermediate;
-
-    Assert(commandList->GetDevice(IID_PPV_ARGS(&device)));
 
     Assert(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
                                            D3D12_HEAP_FLAG_NONE,
@@ -25,7 +22,7 @@ std::pair<PResource, PResource> QueryUploadBuffer(PGraphicsCommandList commandLi
     subresourceData.pData                  = data;
     subresourceData.RowPitch               = bufSize;
     subresourceData.SlicePitch             = bufSize;
-    UpdateSubresources(commandList.Get(), buffer.Get(), intermediate.Get(), 0, 0, 1, &subresourceData);
+    rub.Upload(buffer.Get(), 0, &subresourceData, 1);
 
-    return std::make_pair(buffer, intermediate);
+    return buffer;
 }

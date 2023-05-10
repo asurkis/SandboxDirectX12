@@ -7,7 +7,7 @@
 class Material
 {
   public:
-    void QueryInit(PGraphicsCommandList commandList, const MaterialData &data);
+    void QueryInit(ResourceUploadBatch &rub, const MaterialData &data);
     void Draw(PGraphicsCommandList commandList);
 };
 
@@ -29,9 +29,7 @@ class Mesh
     const D3D12_VERTEX_BUFFER_VIEW &GetVertexView() const noexcept { return m_VertexBufferView; }
     const D3D12_INDEX_BUFFER_VIEW  &GetIndexView() const noexcept { return m_IndexBufferView; }
 
-    std::pair<PResource, PResource> QueryInit(PGraphicsCommandList commandList,
-                                              const MeshData      &data,
-                                              const Material      *material = nullptr);
+    void QueryInit(PDevice device, ResourceUploadBatch &rub, const MeshData &data, const Material *material = nullptr);
 
     void Draw(PGraphicsCommandList commandList);
 };
@@ -39,9 +37,9 @@ class Mesh
 class Scene
 {
     std::vector<Material> m_Materials;
-    std::vector<Mesh> m_Meshes;
+    std::vector<Mesh>     m_Meshes;
 
   public:
-    std::vector<PResource> QueryInit(PGraphicsCommandList commandList, const SceneData &data);
-    void                   Draw(PGraphicsCommandList commandList);
+    void QueryInit(PDevice device, ResourceUploadBatch &rub, const SceneData &data);
+    void Draw(PGraphicsCommandList commandList);
 };

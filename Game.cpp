@@ -66,9 +66,12 @@ Game::Game(Application *application, int width, int height)
     sponzaData.LoadFromFile("c:/Users/asurk/Documents/glTF-Sample-Models/2.0/Sponza/glTF/", "Sponza.gltf");
     // sponzaData.LoadFromFile("c:/Users/asurk/Documents/monkey.obj");
 
-    auto imm1 = m_CubeMesh.QueryInit(commandList, cubeData);
-    auto imm2 = m_ScreenMesh.QueryInit(commandList, fullScreenData);
-    auto imm3 = m_SponzaScene.QueryInit(commandList, sponzaData);
+    ResourceUploadBatch upload(device.Get());
+    upload.Begin(D3D12_COMMAND_LIST_TYPE_COPY);
+
+    m_CubeMesh.QueryInit(device, upload, cubeData);
+    m_ScreenMesh.QueryInit(device, upload, fullScreenData);
+    m_SponzaScene.QueryInit(device, upload, sponzaData);
 
     m_DSVHeap.emplace(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 1);
     m_TextureHeap.emplace(
@@ -81,7 +84,8 @@ Game::Game(Application *application, int width, int height)
 
     ReloadShaders();
 
-    commandQueue.ExecuteAndWait(commandList);
+    upload.End(commandQueue.Get().Get()).wait();
+
     m_ContentLoaded = true;
     ResizeBuffers(width, height);
 
@@ -228,38 +232,6 @@ void Game::ReloadShaders()
     gpsDesc.SampleDesc.Count   = 1;
     gpsDesc.SampleDesc.Quality = 0;
     Assert(device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(m_PipelineStateFilter.ReleaseAndGetAddressOf())));
-}
-
-void Game::UpdateBufferResource(PGraphicsCommandList commandList,
-                                ID3D12Resource     **destinationResource,
-                                ID3D12Resource     **intermediateResource,
-                                size_t               numElements,
-                                size_t               elementSize,
-                                const void          *bufferData,
-                                D3D12_RESOURCE_FLAGS flags)
-{
-    PDevice device     = Application::Get()->GetDevice();
-    size_t  bufferSize = numElements * elementSize;
-    Assert(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-                                           D3D12_HEAP_FLAG_NONE,
-                                           &CD3DX12_RESOURCE_DESC::Buffer(bufferSize, flags),
-                                           D3D12_RESOURCE_STATE_COMMON,
-                                           nullptr,
-                                           IID_PPV_ARGS(destinationResource)));
-    if (!bufferData)
-        return;
-    Assert(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-                                           D3D12_HEAP_FLAG_NONE,
-                                           &CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
-                                           D3D12_RESOURCE_STATE_GENERIC_READ,
-                                           nullptr,
-                                           IID_PPV_ARGS(intermediateResource)));
-
-    D3D12_SUBRESOURCE_DATA data = {};
-    data.pData                  = bufferData;
-    data.RowPitch               = bufferSize;
-    data.SlicePitch             = bufferSize;
-    UpdateSubresources(commandList.Get(), *destinationResource, *intermediateResource, 0, 0, 1, &data);
 }
 
 void Game::ResizeBuffers(int width, int height)

@@ -32,4 +32,4 @@ inline constexpr size_t BACK_BUFFER_START      = 0;
 inline constexpr size_t INTERMEDIATE_RTV_START = BACK_BUFFER_START + BACK_BUFFER_COUNT;
 inline constexpr size_t RTV_COUNT              = INTERMEDIATE_RTV_START + INTERMEDIATE_RTV_COUNT;
 
-std::pair<PResource, PResource> QueryUploadBuffer(PGraphicsCommandList commandList, const void *data, size_t bufSize);
+PResource QueryUploadBuffer(PDevice device, ResourceUploadBatch &rub, const void *data, size_t bufSize);

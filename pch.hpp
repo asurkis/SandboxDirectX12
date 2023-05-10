@@ -51,3 +51,4 @@ using PRootSignature       = ComPtr<ID3D12RootSignature>;
 using PSwapChain           = ComPtr<IDXGISwapChain4>;
 
 using DirectX::DescriptorHeap;
+using DirectX::ResourceUploadBatch;
