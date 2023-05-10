@@ -57,8 +57,6 @@ Game::Game(Application *application, int width, int height)
     MeshData cubeData;
     MeshData fullScreenData;
 
-    DirectX::ResourceUploadBatch uploadBatch(device.Get());
-
     cubeData.InitData(g_CubeVertices, _countof(g_CubeVertices), g_CubeIndices, _countof(g_CubeIndices));
     fullScreenData.InitVertices(g_FullScreen, 6);
 
@@ -71,19 +69,16 @@ Game::Game(Application *application, int width, int height)
 
     m_CubeMesh.QueryInit(device, upload, cubeData);
     m_ScreenMesh.QueryInit(device, upload, fullScreenData);
-    m_SponzaScene.QueryInit(device, upload, sponzaData);
 
     m_DSVHeap.emplace(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 1);
-    m_TextureHeap.emplace(
-        device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 1);
 
-    D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
-    featureData.HighestVersion                    = D3D_ROOT_SIGNATURE_VERSION_1_1;
-    if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
-        featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+    m_TextureHeap.emplace(device.Get(),
+                          D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+                          D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+                          1 + sponzaData.TextureCount());
 
+    m_SponzaScene.QueryInit(device, upload, *m_TextureHeap, sponzaData);
     ReloadShaders();
-
     upload.End(commandQueue.Get().Get()).wait();
 
     m_ContentLoaded = true;

@@ -1,6 +1,6 @@
 #include "RootSignature2.hlsl"
 
-Texture2D<float4> Frame : register(s0);
+Texture2D Frame : register(t0);
 
 struct ScreenSize
 {
@@ -12,7 +12,7 @@ ConstantBuffer<ScreenSize> ScreenSizeCB : register(b0);
 struct VertexShaderOutput
 {
     float4 Position : SV_Position;
-    float2 UV : UV;
+    float2 uv : UV;
 };
 
 bool IsPrime(int x)
@@ -27,7 +27,7 @@ bool IsPrime(int x)
     : SV_Target
 {
     // return Frame.Load(IN.UV);
-    int2 pos = ScreenSizeCB.Size * (IN.UV * float2(1.0f, -1.0f) + float2(0.0f, 1.0f));
+    int2 pos = ScreenSizeCB.Size * (IN.uv * float2(1.0f, -1.0f) + float2(0.0f, 1.0f));
 
     float4 gx = 1 * Frame.Load(int3(pos + int2(1, -1), 0)) - 1 * Frame.Load(int3(pos + int2(-1, -1), 0))
               + 2 * Frame.Load(int3(pos + int2(1, +0), 0)) - 2 * Frame.Load(int3(pos + int2(-1, +0), 0))

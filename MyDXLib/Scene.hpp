@@ -6,9 +6,19 @@
 
 class Material
 {
+    DescriptorHeap &m_DescriptorHeap;
+    PResource       m_Textures[TEXTURE_TYPE_COUNT];
+    PResource       m_Samplers[TEXTURE_TYPE_COUNT];
+    size_t          m_DescriptorIdx[TEXTURE_TYPE_COUNT] = {};
+
   public:
-    void QueryInit(ResourceUploadBatch &rub, const MaterialData &data);
-    void Draw(PGraphicsCommandList commandList);
+    Material(PDevice                  device,
+             ResourceUploadBatch     &rub,
+             DirectX::DescriptorHeap &heap,
+             const MaterialData      &data,
+             size_t                  &takenId);
+
+    void Draw(PGraphicsCommandList commandList) const;
 };
 
 class Mesh
@@ -30,8 +40,7 @@ class Mesh
     const D3D12_INDEX_BUFFER_VIEW  &GetIndexView() const noexcept { return m_IndexBufferView; }
 
     void QueryInit(PDevice device, ResourceUploadBatch &rub, const MeshData &data, const Material *material = nullptr);
-
-    void Draw(PGraphicsCommandList commandList);
+    void Draw(PGraphicsCommandList commandList) const;
 };
 
 class Scene
@@ -39,7 +48,9 @@ class Scene
     std::vector<Material> m_Materials;
     std::vector<Mesh>     m_Meshes;
 
+    DescriptorHeap *m_DescriptorHeap;
+
   public:
-    void QueryInit(PDevice device, ResourceUploadBatch &rub, const SceneData &data);
-    void Draw(PGraphicsCommandList commandList);
+    void QueryInit(PDevice device, ResourceUploadBatch &rub, DescriptorHeap &descriptorHeap, const SceneData &data);
+    void Draw(PGraphicsCommandList commandList) const;
 };

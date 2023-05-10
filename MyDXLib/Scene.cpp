@@ -2,9 +2,40 @@
 #include "SceneData.hpp"
 #include "Utils.hpp"
 
-void Material::QueryInit(ResourceUploadBatch &rub, const MaterialData &data) {}
+Material::Material(
+    PDevice device, ResourceUploadBatch &rub, DirectX::DescriptorHeap &heap, const MaterialData &data, size_t &takenId)
+    : m_DescriptorHeap(heap)
+{
+    for (size_t i = 0; i < TEXTURE_TYPE_COUNT; ++i)
+        m_DescriptorIdx[i] = ~0;
 
-void Material::Draw(PGraphicsCommandList commandList) {}
+    for (size_t i = 0; i < TEXTURE_TYPE_COUNT; ++i)
+    {
+        size_t id          = takenId++;
+        m_DescriptorIdx[i] = id;
+
+        if (data.TexturePaths[i].empty())
+            continue;
+
+        (DirectX::CreateWICTextureFromFile(
+            device.Get(), rub, data.TexturePaths[i].c_str(), m_Textures[i].ReleaseAndGetAddressOf()));
+
+        D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
+        desc.Format                          = DXGI_FORMAT_UNKNOWN;
+        desc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURE2D;
+        desc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        desc.Texture2D.MostDetailedMip       = 0;
+        desc.Texture2D.MipLevels             = -1;
+        desc.Texture2D.PlaneSlice            = 0;
+        desc.Texture2D.ResourceMinLODClamp   = 0.0f;
+        device->CreateShaderResourceView(m_Textures[i].Get(), &desc, m_DescriptorHeap.GetCpuHandle(id));
+    }
+}
+
+void Material::Draw(PGraphicsCommandList commandList) const
+{
+    commandList->SetGraphicsRootDescriptorTable(1, m_DescriptorHeap.GetGpuHandle(m_DescriptorIdx[0]));
+}
 
 void Mesh::QueryInit(PDevice device, ResourceUploadBatch &rub, const MeshData &data, const Material *material)
 {
@@ -40,9 +71,13 @@ void Mesh::QueryInit(PDevice device, ResourceUploadBatch &rub, const MeshData &d
     m_MaterialIndex = data.m_MaterialIndex;
 }
 
-void Mesh::Draw(PGraphicsCommandList commandList)
+void Mesh::Draw(PGraphicsCommandList commandList) const
 {
     commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
+
+    if (m_Material)
+        m_Material->Draw(commandList);
+
     if (m_UseIndex)
     {
         commandList->IASetIndexBuffer(&m_IndexBufferView);
@@ -54,21 +89,29 @@ void Mesh::Draw(PGraphicsCommandList commandList)
     }
 }
 
-void Scene::QueryInit(PDevice device, ResourceUploadBatch &rub, const SceneData &data)
+void Scene::QueryInit(PDevice device, ResourceUploadBatch &rub, DescriptorHeap &descriptorHeap, const SceneData &data)
 {
     auto &&materialData = data.GetMaterials();
     auto &&meshData     = data.GetMeshes();
 
-    m_Materials.resize(materialData.size());
+    m_Materials.clear();
+    m_Materials.reserve(materialData.size());
     m_Meshes.resize(meshData.size());
 
-    for (std::size_t i = 0; i < materialData.size(); ++i) {}
+    size_t takenId = 1;
+    for (std::size_t i = 0; i < materialData.size(); ++i)
+        m_Materials.emplace_back(device, rub, descriptorHeap, materialData[i], takenId);
 
     for (std::size_t i = 0; i < meshData.size(); ++i)
-        m_Meshes[i].QueryInit(device, rub, meshData[i], &m_Materials[meshData[i].m_MaterialIndex]);
+    {
+        Material *material = nullptr;
+        if (meshData[i].m_MaterialIndex < m_Materials.size())
+            material = &m_Materials[meshData[i].m_MaterialIndex];
+        m_Meshes[i].QueryInit(device, rub, meshData[i], material);
+    }
 }
 
-void Scene::Draw(PGraphicsCommandList commandList)
+void Scene::Draw(PGraphicsCommandList commandList) const
 {
     for (auto &&mesh : m_Meshes)
         mesh.Draw(commandList);

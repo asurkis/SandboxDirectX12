@@ -1,20 +1,15 @@
 #include "RootSignature2.hlsl"
 
-struct VertexShaderInput
-{
-    float2 UV : UV;
-};
-
 struct VertexShaderOutput
 {
     float4 Position : SV_Position;
-    float2 UV : UV;
+    float2 uv : UV;
 };
 
-[RootSignature(ROOT_SIGNATURE_2)] VertexShaderOutput main(VertexShaderInput IN)
+[RootSignature(ROOT_SIGNATURE_2)] VertexShaderOutput main(float2 uv : UV)
 {
     VertexShaderOutput OUT;
-    OUT.Position = float4(2.0f * IN.UV - float2(1.0f, 1.0f), 0.0f, 1.0f);
-    OUT.UV       = IN.UV;
+    OUT.Position = float4(2.0f * uv - float2(1.0f, 1.0f), 0.0f, 1.0f);
+    OUT.uv       = uv;
     return OUT;
 }

@@ -72,24 +72,16 @@ class MeshData
     constexpr size_t IndexCount() const noexcept { return m_IndexCount; }
 };
 
-class MeshMaterialData : public MeshData
-{
-  public:
-    MeshMaterialData()                                    = default;
-    MeshMaterialData(MeshMaterialData const &)            = default;
-    MeshMaterialData(MeshMaterialData &&)                 = default;
-    MeshMaterialData &operator=(MeshMaterialData const &) = default;
-    MeshMaterialData &operator=(MeshMaterialData &&)      = default;
-};
-
 class SceneData
 {
-    std::vector<MaterialData>     m_Materials;
-    std::vector<MeshMaterialData> m_Meshes;
+    std::vector<MaterialData> m_Materials;
+    std::vector<MeshData>     m_Meshes;
 
   public:
-    const std::vector<MaterialData>     &GetMaterials() const noexcept { return m_Materials; }
-    const std::vector<MeshMaterialData> &GetMeshes() const noexcept { return m_Meshes; }
+    const std::vector<MaterialData> &GetMaterials() const noexcept { return m_Materials; }
+    const std::vector<MeshData>     &GetMeshes() const noexcept { return m_Meshes; }
 
     void LoadFromFile(const std::string &sceneDir, const std::string &filename);
+
+    size_t TextureCount() const noexcept { return m_Materials.size() * TEXTURE_TYPE_COUNT; }
 };
