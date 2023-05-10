@@ -4,7 +4,6 @@
 
 #include "Game.hpp"
 #include "MyDXLib/CommandQueue.hpp"
-#include "MyDXLib/DescriptorHeap.hpp"
 #include "MyDXLib/MainWindow.hpp"
 #include "MyDXLib/Utils.hpp"
 
@@ -31,7 +30,7 @@ class Application
     PSwapChain m_SwapChain;
     UINT       m_CurrentBackBufferIndex;
 
-    DescriptorHeap m_RTVDescriptorHeap;
+    std::optional<DescriptorHeap> m_RTVDescriptorHeap;
 
     // By default, enable V-Sync.
     // Can be toggled with the V key.
@@ -77,14 +76,14 @@ class Application
     PResource  GetCurrentBackBuffer() const { return m_BackBuffers[m_CurrentBackBufferIndex]; }
     PSwapChain GetSwapChain() const { return m_SwapChain; }
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE CurrentRTV() const
+    D3D12_CPU_DESCRIPTOR_HANDLE CurrentRTV() const
     {
-        return m_RTVDescriptorHeap.GetCPUOffset(BACK_BUFFER_START + m_CurrentBackBufferIndex);
+        return m_RTVDescriptorHeap->GetCpuHandle(BACK_BUFFER_START + m_CurrentBackBufferIndex);
     }
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE IntermediateRTV() const
+    D3D12_CPU_DESCRIPTOR_HANDLE IntermediateRTV() const
     {
-        return m_RTVDescriptorHeap.GetCPUOffset(INTERMEDIATE_RTV_START);
+        return m_RTVDescriptorHeap->GetCpuHandle(INTERMEDIATE_RTV_START);
     }
 
     void Flush()

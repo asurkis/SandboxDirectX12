@@ -4,9 +4,9 @@ set(CMAKE_CXX_STANDARD 17)
 
 find_package(assimp REQUIRED)
 find_package(directx-headers REQUIRED)
-find_package(directxtex REQUIRED)
+find_package(directxtk12 REQUIRED)
 
-find_path(DirectX_Headers_INCLUDE_DIR NAMES d3dx12.h PATH_SUFFIXES directx-headers)
+find_path(CATCH_INCLUDE_DIR NAMES d3dx12.h PATH_SUFFIXES directx-headers)
 
 set(SHADER_FILES
     VertexCube.hlsl
@@ -22,7 +22,6 @@ set(CLASSES
     Game
     MyDXLib/Camera
     MyDXLib/CommandQueue
-    MyDXLib/DescriptorHeap
     MyDXLib/MainWindow
     MyDXLib/Scene
     MyDXLib/SceneData
@@ -65,7 +64,8 @@ add_dependencies(${PROJECT_NAME} Shaders)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${DirectX_Headers_INCLUDE_DIR}/directx"
+    "${CATCH_INCLUDE_DIR}"
+    "${CATCH_INCLUDE_DIR}/directx"
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -75,5 +75,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     assimp::assimp
     Microsoft::DirectX-Headers
     Microsoft::DirectX-Guids
-    Microsoft::DirectXTex
+    Microsoft::DirectXTK12
 )

@@ -3,7 +3,6 @@
 #include "pch.hpp"
 
 #include "MyDXLib/Camera.hpp"
-#include "MyDXLib/DescriptorHeap.hpp"
 #include "MyDXLib/Scene.hpp"
 #include "MyDXLib/Utils.hpp"
 
@@ -18,8 +17,8 @@ class Game
     PResource m_ColorBuffer;
     PResource m_DepthBuffer;
 
-    DescriptorHeap m_DSVHeap;
-    DescriptorHeap m_TextureHeap;
+    std::optional<DescriptorHeap> m_DSVHeap;
+    std::optional<DescriptorHeap> m_TextureHeap;
 
     PRootSignature m_RootSignatureCube;
     PRootSignature m_RootSignatureFilter;

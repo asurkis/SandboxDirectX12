@@ -2,7 +2,13 @@
 #include "SceneData.hpp"
 #include "Utils.hpp"
 
-std::pair<PResource, PResource> Mesh::QueryInit(PGraphicsCommandList commandList, const MeshData &data)
+void Material::QueryInit(PGraphicsCommandList commandList, const MaterialData &data) {}
+
+void Material::Draw(PGraphicsCommandList commandList) {}
+
+std::pair<PResource, PResource> Mesh::QueryInit(PGraphicsCommandList commandList,
+                                                const MeshData      &data,
+                                                const Material      *material)
 {
     DXGI_FORMAT indexFormat = DXGI_FORMAT_UNKNOWN;
     switch (data.SingleIndexSize())
@@ -44,6 +50,9 @@ std::pair<PResource, PResource> Mesh::QueryInit(PGraphicsCommandList commandList
     m_IndexBufferView.SizeInBytes = static_cast<UINT>(data.IndexBufferSize());
     m_IndexBufferView.Format      = indexFormat;
 
+    m_Material      = material;
+    m_MaterialIndex = data.m_MaterialIndex;
+
     return std::make_pair(std::move(immVertices), std::move(immIndices));
 }
 
@@ -63,16 +72,23 @@ void Mesh::Draw(PGraphicsCommandList commandList)
 
 std::vector<PResource> Scene::QueryInit(PGraphicsCommandList commandList, const SceneData &data)
 {
-    auto &&meshData = data.GetMeshes();
+    auto &&materialData = data.GetMaterials();
+    auto &&meshData     = data.GetMeshes();
+
+    m_Materials.resize(materialData.size());
     m_Meshes.resize(meshData.size());
 
     std::vector<PResource> immediate;
+
+    for (std::size_t i = 0; i < materialData.size(); ++i) {}
+
     for (std::size_t i = 0; i < meshData.size(); ++i)
     {
-        auto [imm1, imm2] = m_Meshes[i].QueryInit(commandList, meshData[i]);
+        auto [imm1, imm2] = m_Meshes[i].QueryInit(commandList, meshData[i], &m_Materials[meshData[i].m_MaterialIndex]);
         immediate.push_back(std::move(imm1));
         immediate.push_back(std::move(imm2));
     }
+
     return immediate;
 }
 

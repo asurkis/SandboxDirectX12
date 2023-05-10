@@ -10,22 +10,37 @@ struct PosUV
     aiVector2D uv;
 };
 
-SceneData SceneData::LoadFromFile(const char *path)
+void SceneData::LoadFromFile(const std::string &sceneDir, const std::string &filename)
 {
-    unsigned int importFlags = aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate
-                             | aiProcess_PreTransformVertices | aiProcess_ValidateDataStructure
-                             | aiProcess_ImproveCacheLocality;
-
+    // Had troubles with enabling <filesystem> include in MSVC,
+    // this is a workaround
     Assimp::Importer importer;
-
-    const aiScene *scene = importer.ReadFile(path, aiProcess_Triangulate);
+    const aiScene   *scene = importer.ReadFile(sceneDir + filename, aiProcessPreset_TargetRealtime_Quality);
 
     if (!scene)
         throw std::exception("Couldn't read scene from file");
 
-    SceneData result;
-    result.m_Meshes.resize(scene->mNumMeshes);
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    aiString                                               texturePath;
 
+    m_Materials.resize(scene->mNumMaterials);
+    for (size_t i = 0; i < scene->mNumMaterials; ++i)
+    {
+        auto material = scene->mMaterials[i];
+#define E(x)                                                                                                           \
+    if (material->GetTextureCount(aiTextureType_##x) > 0)                                                              \
+    {                                                                                                                  \
+        if (material->GetTexture(aiTextureType_##x, 0, &texturePath) == aiReturn_SUCCESS)                              \
+        {                                                                                                              \
+            m_Materials[i].TexturePaths[TEXTURE_TYPE_##x]                                                              \
+                = converter.from_bytes((sceneDir + texturePath.C_Str()).c_str());                                      \
+        }                                                                                                              \
+    }
+        ENUM_TEXTURE_TYPES
+#undef E
+    }
+
+    m_Meshes.resize(scene->mNumMeshes);
     for (size_t i = 0; i < scene->mNumMeshes; ++i)
     {
         auto mesh = scene->mMeshes[i];
@@ -57,8 +72,7 @@ SceneData SceneData::LoadFromFile(const char *path)
                 indices.push_back(face.mIndices[k]);
         }
 
-        result.m_Meshes[i].InitData(vertices.data(), vertices.size(), indices.data(), indices.size());
+        m_Meshes[i].InitData(vertices.data(), vertices.size(), indices.data(), indices.size());
+        m_Meshes[i].m_MaterialIndex = mesh->mMaterialIndex;
     }
-
-    return result;
 }

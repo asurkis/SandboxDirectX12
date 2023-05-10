@@ -1,6 +1,5 @@
 #include "Game.hpp"
 #include "Application.hpp"
-#include "MyDXLib/DescriptorHeap.hpp"
 #include "MyDXLib/SceneData.hpp"
 #include <cmath>
 
@@ -58,20 +57,22 @@ Game::Game(Application *application, int width, int height)
     MeshData cubeData;
     MeshData fullScreenData;
 
+    DirectX::ResourceUploadBatch uploadBatch(device.Get());
+
     cubeData.InitData(g_CubeVertices, _countof(g_CubeVertices), g_CubeIndices, _countof(g_CubeIndices));
     fullScreenData.InitVertices(g_FullScreen, 6);
 
-    SceneData sponzaData
-        = SceneData::LoadFromFile("c:/Users/asurk/Documents/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf");
+    SceneData sponzaData;
+    sponzaData.LoadFromFile("c:/Users/asurk/Documents/glTF-Sample-Models/2.0/Sponza/glTF/", "Sponza.gltf");
     // sponzaData.LoadFromFile("c:/Users/asurk/Documents/monkey.obj");
 
     auto imm1 = m_CubeMesh.QueryInit(commandList, cubeData);
     auto imm2 = m_ScreenMesh.QueryInit(commandList, fullScreenData);
     auto imm3 = m_SponzaScene.QueryInit(commandList, sponzaData);
 
-    m_DSVHeap = DescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
-    m_TextureHeap
-        = DescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+    m_DSVHeap.emplace(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 1);
+    m_TextureHeap.emplace(
+        device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 1);
 
     D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
     featureData.HighestVersion                    = D3D_ROOT_SIGNATURE_VERSION_1_1;
@@ -320,8 +321,8 @@ void Game::ResizeBuffers(int width, int height)
     srvDesc.Texture2D.ResourceMinLODClamp   = 0.0f;
 
     device->CreateRenderTargetView(m_ColorBuffer.Get(), &rtvDesc, Application::Get()->IntermediateRTV());
-    device->CreateDepthStencilView(m_DepthBuffer.Get(), &dsvDesc, m_DSVHeap.GetCPUStart());
-    device->CreateShaderResourceView(m_ColorBuffer.Get(), &srvDesc, m_TextureHeap.GetCPUStart());
+    device->CreateDepthStencilView(m_DepthBuffer.Get(), &dsvDesc, m_DSVHeap->GetFirstCpuHandle());
+    device->CreateShaderResourceView(m_ColorBuffer.Get(), &srvDesc, m_TextureHeap->GetFirstCpuHandle());
 }
 
 void Game::OnResize(int width, int height)
@@ -433,9 +434,9 @@ void Game::OnRender()
     PResource backBuffer             = Application::Get()->GetCurrentBackBuffer();
     auto      outRtv                 = Application::Get()->CurrentRTV();
     auto      rtv                    = Application::Get()->IntermediateRTV();
-    auto      dsv                    = m_DSVHeap.GetCPUStart();
+    auto      dsv                    = m_DSVHeap->GetFirstCpuHandle();
 
-    ID3D12DescriptorHeap *const heapsToSet[] = {m_TextureHeap.Get().Get()};
+    ID3D12DescriptorHeap *const heapsToSet[] = {m_TextureHeap->Heap()};
     commandList->SetDescriptorHeaps(1, heapsToSet);
 
     TransitionResource(
@@ -482,7 +483,7 @@ void Game::OnRender()
     commandList->SetPipelineState(m_PipelineStateFilter.Get());
     commandList->SetGraphicsRootSignature(m_RootSignatureFilter.Get());
 
-    commandList->SetGraphicsRootDescriptorTable(1, m_TextureHeap.GetGPUStart());
+    commandList->SetGraphicsRootDescriptorTable(1, m_TextureHeap->GetFirstGpuHandle());
 
     XMINT2 screenSize(m_Width, m_Height);
     commandList->SetGraphicsRoot32BitConstants(0, 2, &screenSize, 0);

@@ -2,6 +2,23 @@
 
 #include "pch.hpp"
 
+#define ENUM_TEXTURE_TYPES                                                                                             \
+    E(BASE_COLOR) E(NORMAL_CAMERA) E(EMISSION_COLOR) E(METALNESS) E(DIFFUSE_ROUGHNESS) E(AMBIENT_OCCLUSION)
+
+enum TextureType
+{
+#define E(x) TEXTURE_TYPE_##x,
+    ENUM_TEXTURE_TYPES
+#undef E
+        TEXTURE_TYPE_COUNT
+};
+
+class MaterialData
+{
+  public:
+    std::wstring TexturePaths[TEXTURE_TYPE_COUNT];
+};
+
 class MeshData
 {
     std::vector<char> m_VertexBuffer;
@@ -12,6 +29,8 @@ class MeshData
     size_t            m_IndexSize   = 0;
 
   public:
+    size_t m_MaterialIndex = 0;
+
     MeshData()                            = default;
     MeshData(MeshData const &)            = default;
     MeshData(MeshData &&)                 = default;
@@ -53,10 +72,6 @@ class MeshData
     constexpr size_t IndexCount() const noexcept { return m_IndexCount; }
 };
 
-class MaterialData
-{
-};
-
 class MeshMaterialData : public MeshData
 {
   public:
@@ -69,12 +84,12 @@ class MeshMaterialData : public MeshData
 
 class SceneData
 {
-    std::vector<MeshMaterialData> m_Meshes;
     std::vector<MaterialData>     m_Materials;
+    std::vector<MeshMaterialData> m_Meshes;
 
   public:
-    const std::vector<MeshMaterialData> &GetMeshes() const noexcept { return m_Meshes; }
     const std::vector<MaterialData>     &GetMaterials() const noexcept { return m_Materials; }
+    const std::vector<MeshMaterialData> &GetMeshes() const noexcept { return m_Meshes; }
 
-    static SceneData LoadFromFile(const char *path);
+    void LoadFromFile(const std::string &sceneDir, const std::string &filename);
 };

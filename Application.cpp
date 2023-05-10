@@ -21,7 +21,8 @@ Application::Application(HINSTANCE hInstance)
         factory, m_Window.Get(), m_TearingSupported, m_ClientWidth, m_ClientHeight, BACK_BUFFER_COUNT);
     m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
 
-    m_RTVDescriptorHeap = DescriptorHeap(m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, RTV_COUNT);
+    m_RTVDescriptorHeap.emplace(
+        m_Device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, RTV_COUNT);
 
     UpdateRenderTargetViews();
 }
@@ -225,14 +226,13 @@ bool Application::CheckTearingSupport()
 
 void Application::UpdateRenderTargetViews()
 {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_RTVDescriptorHeap.GetCPUStart());
     for (UINT i = 0; i < BACK_BUFFER_COUNT; ++i)
     {
-        PResource backBuffer;
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_RTVDescriptorHeap->GetCpuHandle(i));
+        PResource                     backBuffer;
         Assert(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
         m_Device->CreateRenderTargetView(backBuffer.Get(), nullptr, rtvHandle);
         m_BackBuffers[i] = backBuffer;
-        rtvHandle.Offset(m_RTVDescriptorHeap.GetIncrementSize());
     }
 }
 
