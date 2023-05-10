@@ -1,12 +1,17 @@
 cmake_minimum_required(VERSION 3.10)
 project(SandboxDirectX12)
 set(CMAKE_CXX_STANDARD 17)
-add_subdirectory(DirectX-Headers)
 
-set(SHADER_FILES 
-    VertexCube.hlsl 
-    VertexSponza.hlsl 
-    VertexFilter.hlsl 
+find_package(assimp REQUIRED)
+find_package(directx-headers REQUIRED)
+find_package(directxtex REQUIRED)
+
+find_path(DirectX_Headers_INCLUDE_DIR NAMES d3dx12.h PATH_SUFFIXES directx-headers)
+
+set(SHADER_FILES
+    VertexCube.hlsl
+    VertexSponza.hlsl
+    VertexFilter.hlsl
     PixelCube.hlsl
     PixelSponza.hlsl
     PixelFilter.hlsl
@@ -23,8 +28,6 @@ set(CLASSES
     MyDXLib/SceneData
     MyDXLib/Utils
 )
-
-find_package(assimp REQUIRED)
 
 add_custom_target(Shaders SOURCES ${SHADER_FILES})
 
@@ -60,16 +63,17 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE pch.hpp)
 
 add_dependencies(${PROJECT_NAME} Shaders)
 
-target_include_directories(${PROJECT_NAME} PRIVATE 
+target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/DirectX-Headers/include/directx"
+    "${DirectX_Headers_INCLUDE_DIR}/directx"
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE 
-    DirectX-Headers 
-    DirectX-Guids 
-    d3d12.lib 
-    dxgi.lib 
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    d3d12.lib
+    dxgi.lib
     d3dcompiler.lib
     assimp::assimp
+    Microsoft::DirectX-Headers
+    Microsoft::DirectX-Guids
+    Microsoft::DirectXTex
 )
