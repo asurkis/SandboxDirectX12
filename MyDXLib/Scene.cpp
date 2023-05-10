@@ -17,7 +17,7 @@ Material::Material(
         if (data.TexturePaths[i].empty())
             continue;
 
-        (DirectX::CreateWICTextureFromFile(
+        Assert(DirectX::CreateWICTextureFromFile(
             device.Get(), rub, data.TexturePaths[i].c_str(), m_Textures[i].ReleaseAndGetAddressOf()));
 
         D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};

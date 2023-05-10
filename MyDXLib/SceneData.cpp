@@ -15,7 +15,8 @@ void SceneData::LoadFromFile(const std::string &sceneDir, const std::string &fil
     // Had troubles with enabling <filesystem> include in MSVC,
     // this is a workaround
     Assimp::Importer importer;
-    const aiScene   *scene = importer.ReadFile(sceneDir + filename, aiProcessPreset_TargetRealtime_Quality);
+    const aiScene   *scene = importer.ReadFile(
+        sceneDir + filename, aiProcessPreset_TargetRealtime_Quality | aiProcess_TransformUVCoords | aiProcess_FlipUVs);
 
     if (!scene)
         throw std::exception("Couldn't read scene from file");
