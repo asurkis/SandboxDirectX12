@@ -13,6 +13,8 @@ enum TextureType
         TEXTURE_TYPE_COUNT
 };
 
+class aiScene;
+
 class MaterialData
 {
   public:
@@ -72,14 +74,23 @@ class MeshData
     constexpr size_t IndexCount() const noexcept { return m_IndexCount; }
 };
 
+class ObjectData
+{
+  public:
+    DirectX::XMFLOAT4X4 m_Transform;
+    size_t              m_MeshIndex = 0;
+};
+
 class SceneData
 {
     std::vector<MaterialData> m_Materials;
     std::vector<MeshData>     m_Meshes;
+    std::vector<ObjectData>   m_Objects;
 
   public:
     const std::vector<MaterialData> &GetMaterials() const noexcept { return m_Materials; }
     const std::vector<MeshData>     &GetMeshes() const noexcept { return m_Meshes; }
+    const std::vector<ObjectData>   &GetObjects() const noexcept { return m_Objects; }
 
     void LoadFromFile(const std::string &sceneDir, const std::string &filename);
 

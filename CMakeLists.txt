@@ -1,12 +1,10 @@
-cmake_minimum_required(VERSION 3.10)
-project(SandboxDirectX12)
+cmake_minimum_required(VERSION 3.20)
+project(SandboxDirectX12 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 
-find_package(assimp REQUIRED)
-find_package(directx-headers REQUIRED)
-find_package(directxtk12 REQUIRED)
-
-find_path(CATCH_INCLUDE_DIR NAMES d3dx12.h PATH_SUFFIXES directx-headers)
+find_package( assimp          PATHS 3rd-party/assimp          NO_DEFAULT_PATH REQUIRED )
+find_package( DirectX-Headers PATHS 3rd-party/DirectX-Headers NO_DEFAULT_PATH REQUIRED )
+find_package( DirectXTK12     PATHS 3rd-party/DirectXTK12     NO_DEFAULT_PATH REQUIRED )
 
 set(SHADER_FILES
     VertexCube.hlsl
@@ -39,7 +37,7 @@ set_source_files_properties(  PixelFilter.hlsl PROPERTIES ShaderType ps VS_SHADE
 
 foreach(FILE ${SHADER_FILES})
     set_source_files_properties(${FILE} PROPERTIES VS_SHADER_MODEL 6.0)
-    configure_file("${FILE}" "${CMAKE_CURRENT_BINARY_DIR}/${FILE}" COPYONLY)
+    configure_file("${FILE}" "${PROJECT_BINARY_DIR}/${FILE}" COPYONLY)
     get_filename_component(FILE_WE "${FILE}" NAME_WE)
     get_source_file_property(SHADER_TYPE "${FILE}" ShaderType)
     add_custom_command(
@@ -49,7 +47,7 @@ foreach(FILE ${SHADER_FILES})
             -Zi
             -Fo "${FILE_WE}.cso"
             -Fd "${FILE_WE}.pdb"
-            "${CMAKE_CURRENT_SOURCE_DIR}/${FILE}")
+            "${PROJECT_SOURCE_DIR}/${FILE}")
 endforeach()
 
 set(CPP_FILES "")
@@ -58,15 +56,18 @@ foreach(CLS ${CLASSES})
 endforeach()
 
 add_executable(${PROJECT_NAME} WIN32 main.cpp pch.hpp ${CPP_FILES})
+
+target_include_directories(${PROJECT_NAME} PRIVATE
+    "${PROJECT_SOURCE_DIR}"
+    "${PROJECT_SOURCE_DIR}/3rd-party/assimp/include"
+    "${PROJECT_SOURCE_DIR}/3rd-party/DirectX-Headers/include"
+    "${PROJECT_SOURCE_DIR}/3rd-party/DirectX-Headers/include/directx"
+    "${PROJECT_SOURCE_DIR}/3rd-party/DirectXTK12/include"
+)
+
 target_precompile_headers(${PROJECT_NAME} PRIVATE pch.hpp)
 
 add_dependencies(${PROJECT_NAME} Shaders)
-
-target_include_directories(${PROJECT_NAME} PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${CATCH_INCLUDE_DIR}"
-    "${CATCH_INCLUDE_DIR}/directx"
-)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     d3d12.lib

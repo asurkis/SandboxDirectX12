@@ -34,6 +34,8 @@ Material::Material(
 
 void Material::Draw(PGraphicsCommandList commandList) const
 {
+    if (!m_Textures[0])
+        return;
     commandList->SetGraphicsRootDescriptorTable(1, m_DescriptorHeap.GetGpuHandle(m_DescriptorIdx[0]));
 }
 

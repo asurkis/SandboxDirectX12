@@ -26,8 +26,8 @@ bool IsPrime(int x)
 [RootSignature(ROOT_SIGNATURE_2)] float4 main(VertexShaderOutput IN)
     : SV_Target
 {
-    // return Frame.Load(IN.UV);
     int2 pos = ScreenSizeCB.Size * (IN.uv * float2(1.0f, -1.0f) + float2(0.0f, 1.0f));
+    return Frame.Load(int3(pos, 0));
 
     float4 gx = 1 * Frame.Load(int3(pos + int2(1, -1), 0)) - 1 * Frame.Load(int3(pos + int2(-1, -1), 0))
               + 2 * Frame.Load(int3(pos + int2(1, +0), 0)) - 2 * Frame.Load(int3(pos + int2(-1, +0), 0))
@@ -38,5 +38,4 @@ bool IsPrime(int x)
               + 1 * Frame.Load(int3(pos + int2(+1, 1), 0)) - 1 * Frame.Load(int3(pos + int2(+1, -1), 0));
 
     // return float4(sqrt(gx.rgb * gx.rgb + gy.rgb * gy.rgb), 1.0f);
-    return Frame.Load(int3(pos, 0));
 }

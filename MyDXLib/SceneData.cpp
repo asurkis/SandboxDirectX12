@@ -15,8 +15,9 @@ void SceneData::LoadFromFile(const std::string &sceneDir, const std::string &fil
     // Had troubles with enabling <filesystem> include in MSVC,
     // this is a workaround
     Assimp::Importer importer;
-    const aiScene   *scene = importer.ReadFile(
-        sceneDir + filename, aiProcessPreset_TargetRealtime_Quality | aiProcess_TransformUVCoords | aiProcess_FlipUVs);
+    const aiScene   *scene = importer.ReadFile(sceneDir + filename,
+                                             aiProcessPreset_TargetRealtime_Quality | aiProcess_TransformUVCoords
+                                                 | aiProcess_FlipUVs | aiProcess_ValidateDataStructure);
 
     if (!scene)
         throw std::exception("Couldn't read scene from file");
@@ -68,7 +69,8 @@ void SceneData::LoadFromFile(const std::string &sceneDir, const std::string &fil
         {
             auto &&face = mesh->mFaces[j];
             if (face.mNumIndices != 3)
-                throw std::exception("Weird face");
+                // throw std::exception("Weird face");
+                continue;
             for (size_t k = 0; k < face.mNumIndices; ++k)
                 indices.push_back(face.mIndices[k]);
         }

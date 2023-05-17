@@ -61,8 +61,8 @@ Game::Game(Application *application, int width, int height)
     fullScreenData.InitVertices(g_FullScreen, 6);
 
     SceneData sponzaData;
-    sponzaData.LoadFromFile("c:/Users/asurk/Documents/glTF-Sample-Models/2.0/Sponza/glTF/", "Sponza.gltf");
-    // sponzaData.LoadFromFile("c:/Users/asurk/Documents/monkey.obj");
+    // sponzaData.LoadFromFile("C:\\Users\\asurk\\Documents\\Main.1_Sponza\\", "NewSponza_Main_glTF_002.gltf");
+    sponzaData.LoadFromFile("C:\\Users\\asurk\\Documents\\glTF-Sample-Models\\2.0\\Sponza\\glTF\\", "Sponza.gltf");
 
     ResourceUploadBatch upload(device.Get());
     upload.Begin(D3D12_COMMAND_LIST_TYPE_COPY);
