@@ -13,8 +13,6 @@ enum TextureType
         TEXTURE_TYPE_COUNT
 };
 
-class aiScene;
-
 class MaterialData
 {
   public:
