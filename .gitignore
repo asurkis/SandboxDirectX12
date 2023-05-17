@@ -2,5 +2,8 @@
 out
 README.html
 vs_2022
+!vs_2022/*.filters
+!vs_2022/*.sln
+!vs_2022/*.vcxproj
 *.cso
 *.pdb

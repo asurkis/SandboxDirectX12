@@ -2,7 +2,6 @@
 #include "Application.hpp"
 #include "MyDXLib/SceneData.hpp"
 #include <cmath>
-#include <filesystem>
 
 using namespace DirectX;
 

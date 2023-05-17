@@ -25,8 +25,8 @@ void SceneData::LoadFromFile(const std::filesystem::path &scenePath)
     if (!scene)
         throw std::exception("Couldn't read scene from file");
 
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    aiString                                               texturePath;
+    std::wstring_convert<std::codecvt<wchar_t, char, std::mbstate_t>> converter;
+    aiString                                                          texturePath;
 
     m_Materials.resize(scene->mNumMaterials);
     for (size_t i = 0; i < scene->mNumMaterials; ++i)
