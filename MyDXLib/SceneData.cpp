@@ -10,12 +10,15 @@ struct PosUV
     aiVector2D uv;
 };
 
-void SceneData::LoadFromFile(const std::string &sceneDir, const std::string &filename)
+void SceneData::LoadFromFile(const std::filesystem::path &scenePath)
 {
     // Had troubles with enabling <filesystem> include in MSVC,
     // this is a workaround
-    Assimp::Importer importer;
-    const aiScene   *scene = importer.ReadFile(sceneDir + filename,
+    Assimp::Importer      importer;
+    std::filesystem::path pathComponents = scenePath;
+    auto                  sceneDirW      = pathComponents.remove_filename().generic_wstring();
+
+    const aiScene *scene = importer.ReadFile(scenePath.generic_string(),
                                              aiProcessPreset_TargetRealtime_Quality | aiProcess_TransformUVCoords
                                                  | aiProcess_FlipUVs | aiProcess_ValidateDataStructure);
 
@@ -34,8 +37,7 @@ void SceneData::LoadFromFile(const std::string &sceneDir, const std::string &fil
     {                                                                                                                  \
         if (material->GetTexture(aiTextureType_##x, 0, &texturePath) == aiReturn_SUCCESS)                              \
         {                                                                                                              \
-            m_Materials[i].TexturePaths[TEXTURE_TYPE_##x]                                                              \
-                = converter.from_bytes((sceneDir + texturePath.C_Str()).c_str());                                      \
+            m_Materials[i].TexturePaths[TEXTURE_TYPE_##x] = sceneDirW + converter.from_bytes(texturePath.C_Str());     \
         }                                                                                                              \
     }
         ENUM_TEXTURE_TYPES

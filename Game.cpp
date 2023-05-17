@@ -2,6 +2,7 @@
 #include "Application.hpp"
 #include "MyDXLib/SceneData.hpp"
 #include <cmath>
+#include <filesystem>
 
 using namespace DirectX;
 
@@ -60,9 +61,10 @@ Game::Game(Application *application, int width, int height)
     cubeData.InitData(g_CubeVertices, _countof(g_CubeVertices), g_CubeIndices, _countof(g_CubeIndices));
     fullScreenData.InitVertices(g_FullScreen, 6);
 
-    SceneData sponzaData;
     // sponzaData.LoadFromFile("C:\\Users\\asurk\\Documents\\Main.1_Sponza\\", "NewSponza_Main_glTF_002.gltf");
-    sponzaData.LoadFromFile("C:\\Users\\asurk\\Documents\\glTF-Sample-Models\\2.0\\Sponza\\glTF\\", "Sponza.gltf");
+    SceneData sponzaData;
+    auto scenePath = std::filesystem::path(__FILE__).remove_filename() / "3rd-party" / "Sponza" / "glTF" / "Sponza.gltf";
+    sponzaData.LoadFromFile(scenePath);
 
     ResourceUploadBatch upload(device.Get());
     upload.Begin(D3D12_COMMAND_LIST_TYPE_COPY);

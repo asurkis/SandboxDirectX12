@@ -90,7 +90,7 @@ class SceneData
     const std::vector<MeshData>     &GetMeshes() const noexcept { return m_Meshes; }
     const std::vector<ObjectData>   &GetObjects() const noexcept { return m_Objects; }
 
-    void LoadFromFile(const std::string &sceneDir, const std::string &filename);
+    void LoadFromFile(const std::filesystem::path &scenePath);
 
     size_t TextureCount() const noexcept { return m_Materials.size() * TEXTURE_TYPE_COUNT; }
 };
