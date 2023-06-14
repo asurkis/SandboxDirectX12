@@ -62,7 +62,8 @@ Game::Game(Application *application, int width, int height)
 
     // sponzaData.LoadFromFile("C:\\Users\\asurk\\Documents\\Main.1_Sponza\\", "NewSponza_Main_glTF_002.gltf");
     SceneData sponzaData;
-    auto scenePath = std::filesystem::path(__FILE__).remove_filename() / "3rd-party" / "Sponza" / "glTF" / "Sponza.gltf";
+    auto      scenePath
+        = std::filesystem::path(__FILE__).remove_filename() / "3rd-party" / "Sponza" / "glTF" / "Sponza.gltf";
     sponzaData.LoadFromFile(scenePath);
 
     ResourceUploadBatch upload(device.Get());
@@ -141,6 +142,18 @@ void Game::ReloadShaders()
 
     D3D12_INPUT_ELEMENT_DESC inputLayoutSponza[] = {
         {"POSITION",
+         0, DXGI_FORMAT_R32G32B32_FLOAT,
+         0, D3D12_APPEND_ALIGNED_ELEMENT,
+         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"NORMAL",
+         0, DXGI_FORMAT_R32G32B32_FLOAT,
+         0, D3D12_APPEND_ALIGNED_ELEMENT,
+         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"TANGENT",
+         0, DXGI_FORMAT_R32G32B32_FLOAT,
+         0, D3D12_APPEND_ALIGNED_ELEMENT,
+         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"BITANGENT",
          0, DXGI_FORMAT_R32G32B32_FLOAT,
          0, D3D12_APPEND_ALIGNED_ELEMENT,
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -451,9 +464,6 @@ void Game::OnRender()
     commandList->SetGraphicsRootSignature(m_RootSignatureFilter.Get());
 
     commandList->SetGraphicsRootDescriptorTable(1, m_TextureHeap->GetFirstGpuHandle());
-
-    XMINT2 screenSize(m_Width, m_Height);
-    commandList->SetGraphicsRoot32BitConstants(0, 2, &screenSize, 0);
 
     m_ScreenMesh.Draw(commandList);
 

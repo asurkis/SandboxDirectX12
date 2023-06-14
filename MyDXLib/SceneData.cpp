@@ -4,9 +4,12 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 
-struct PosUV
+struct VertexData
 {
     aiVector3D pos;
+    aiVector3D normal;
+    aiVector3D tangent;
+    aiVector3D bitangent;
     aiVector2D uv;
 };
 
@@ -83,18 +86,21 @@ void SceneData::LoadFromFile(const std::filesystem::path &scenePath)
         if (mesh->mNumUVComponents[0] < 2)
             throw std::exception("Mesh doesn't contain UV coordinates");
 
-        std::vector<PosUV>    vertices;
-        std::vector<uint32_t> indices;
+        std::vector<VertexData> vertices;
+        std::vector<uint32_t>   indices;
 
         vertices.reserve(mesh->mNumVertices);
         indices.reserve(size_t(3) * mesh->mNumFaces);
 
         for (size_t j = 0; j < mesh->mNumVertices; ++j)
         {
-            auto       vert = mesh->mVertices[j];
-            aiVector3D uvw  = mesh->mTextureCoords[0][j];
-            vertices.push_back(PosUV{
-                vert, {uvw.x, uvw.y}
+            auto       vert      = mesh->mVertices[j];
+            auto       normal    = mesh->mNormals[j];
+            auto       tangent   = mesh->mTangents[j];
+            auto       bitangent = mesh->mBitangents[j];
+            aiVector3D uvw       = mesh->mTextureCoords[0][j];
+            vertices.push_back(VertexData{
+                vert, normal, tangent, bitangent, {uvw.x, uvw.y}
             });
         }
 

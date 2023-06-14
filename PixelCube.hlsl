@@ -6,7 +6,8 @@ struct VertexShaderOutput
     float4 Color : COLOR;
 };
 
-[RootSignature(ROOT_SIGNATURE_1)] float4 main(VertexShaderOutput IN)
+[RootSignature(ROOT_SIGNATURE_1)]
+float4 main(VertexShaderOutput IN)
     : SV_Target
 {
     return IN.Color;

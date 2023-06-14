@@ -2,13 +2,6 @@
 
 Texture2D Frame : register(t0);
 
-struct ScreenSize
-{
-    int2 Size;
-};
-
-ConstantBuffer<ScreenSize> ScreenSizeCB : register(b0);
-
 struct VertexShaderOutput
 {
     float4 Position : SV_Position;
@@ -23,10 +16,10 @@ bool IsPrime(int x)
     return true;
 }
 
-[RootSignature(ROOT_SIGNATURE_2)] float4 main(VertexShaderOutput IN)
-    : SV_Target
+[RootSignature(ROOT_SIGNATURE_2)]
+float4 main(VertexShaderOutput IN) : SV_Target
 {
-    int2 pos = ScreenSizeCB.Size * (IN.uv * float2(1.0f, -1.0f) + float2(0.0f, 1.0f));
+    int2 pos = int2(IN.Position.xy);
     return Frame.Load(int3(pos, 0));
 
     float4 gx = 1 * Frame.Load(int3(pos + int2(1, -1), 0)) - 1 * Frame.Load(int3(pos + int2(-1, -1), 0))
