@@ -436,13 +436,12 @@ void Game::OnRender()
 
     XMMATRIX cameraMatrix = m_Camera.CalcMatrix();
     XMMATRIX mvpMatrix    = m_ModelMatrix * cameraMatrix;
-    commandList->SetGraphicsRoot32BitConstants(0, 16, &mvpMatrix, 0);
     // m_CubeMesh.Draw(commandList);
 
     commandList->SetPipelineState((m_ZLess ? m_PipelineStateSponzaLess : m_PipelineStateSponzaGreater).Get());
     commandList->SetGraphicsRootSignature(m_RootSignatureSponza.Get());
     commandList->SetGraphicsRoot32BitConstants(0, 16, &cameraMatrix, 0);
-    m_SponzaScene.Draw(commandList);
+    m_SponzaScene.Draw(commandList, cameraMatrix);
 
     TransitionResource(
         commandList, m_ColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);

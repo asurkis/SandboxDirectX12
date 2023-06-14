@@ -10,6 +10,37 @@ struct PosUV
     aiVector2D uv;
 };
 
+void ObjectData::ParseNode(const aiNode *node)
+{
+    m_Transform(0, 0) = node->mTransformation.a1;
+    m_Transform(0, 1) = node->mTransformation.a2;
+    m_Transform(0, 2) = node->mTransformation.a3;
+    m_Transform(0, 3) = node->mTransformation.a4;
+    m_Transform(1, 0) = node->mTransformation.b1;
+    m_Transform(1, 1) = node->mTransformation.b2;
+    m_Transform(1, 2) = node->mTransformation.b3;
+    m_Transform(1, 3) = node->mTransformation.b4;
+    m_Transform(2, 0) = node->mTransformation.c1;
+    m_Transform(2, 1) = node->mTransformation.c2;
+    m_Transform(2, 2) = node->mTransformation.c3;
+    m_Transform(2, 3) = node->mTransformation.c4;
+    m_Transform(3, 0) = node->mTransformation.d1;
+    m_Transform(3, 1) = node->mTransformation.d2;
+    m_Transform(3, 2) = node->mTransformation.d3;
+    m_Transform(3, 3) = node->mTransformation.d4;
+
+    m_MeshIdx.resize(node->mNumMeshes);
+    for (size_t i = 0; i < node->mNumMeshes; ++i)
+        m_MeshIdx[i] = node->mMeshes[i];
+
+    m_Children.resize(node->mNumChildren);
+    for (size_t i = 0; i < node->mNumChildren; ++i)
+    {
+        m_Children[i] = std::make_unique<ObjectData>();
+        m_Children[i]->ParseNode(node->mChildren[i]);
+    }
+}
+
 void SceneData::LoadFromFile(const std::filesystem::path &scenePath)
 {
     // Had troubles with enabling <filesystem> include in MSVC,
@@ -80,4 +111,6 @@ void SceneData::LoadFromFile(const std::filesystem::path &scenePath)
         m_Meshes[i].InitData(vertices.data(), vertices.size(), indices.data(), indices.size());
         m_Meshes[i].m_MaterialIndex = mesh->mMaterialIndex;
     }
+
+    m_RootObject.ParseNode(scene->mRootNode);
 }

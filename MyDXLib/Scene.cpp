@@ -2,8 +2,10 @@
 #include "SceneData.hpp"
 #include "Utils.hpp"
 
+using namespace DirectX;
+
 Material::Material(
-    PDevice device, ResourceUploadBatch &rub, DirectX::DescriptorHeap &heap, const MaterialData &data, size_t &takenId)
+    PDevice device, ResourceUploadBatch &rub, DescriptorHeap &heap, const MaterialData &data, size_t &takenId)
     : m_DescriptorHeap(heap)
 {
     for (size_t i = 0; i < TEXTURE_TYPE_COUNT; ++i)
@@ -17,7 +19,7 @@ Material::Material(
         if (data.TexturePaths[i].empty())
             continue;
 
-        Assert(DirectX::CreateWICTextureFromFile(
+        Assert(CreateWICTextureFromFile(
             device.Get(), rub, data.TexturePaths[i].c_str(), m_Textures[i].ReleaseAndGetAddressOf()));
 
         D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
@@ -91,6 +93,34 @@ void Mesh::Draw(PGraphicsCommandList commandList) const
     }
 }
 
+void SceneObject::QueryInit(const ObjectData &data, const std::vector<Mesh> &meshes)
+{
+    m_Transform = XMLoadFloat4x4(&data.m_Transform);
+
+    m_Meshes.resize(data.GetMeshIdx().size());
+    for (size_t i = 0; i < m_Meshes.size(); ++i)
+        m_Meshes[i] = &meshes[data.GetMeshIdx()[i]];
+
+    m_Children.resize(data.GetChildren().size());
+    for (size_t i = 0; i < m_Children.size(); ++i)
+    {
+        m_Children[i] = std::make_unique<SceneObject>();
+        m_Children[i]->QueryInit(*(data.GetChildren()[i]), meshes);
+    }
+}
+
+void SceneObject::Draw(PGraphicsCommandList commandList, const XMMATRIX &mvpMatrix) const
+{
+    XMMATRIX accMatrix = m_Transform * mvpMatrix;
+    commandList->SetGraphicsRoot32BitConstants(0, 16, &accMatrix, 0);
+
+    for (const Mesh *mesh : m_Meshes)
+        mesh->Draw(commandList);
+
+    for (auto &child : m_Children)
+        child->Draw(commandList, accMatrix);
+}
+
 void Scene::QueryInit(PDevice device, ResourceUploadBatch &rub, DescriptorHeap &descriptorHeap, const SceneData &data)
 {
     auto &&materialData = data.GetMaterials();
@@ -111,10 +141,13 @@ void Scene::QueryInit(PDevice device, ResourceUploadBatch &rub, DescriptorHeap &
             material = &m_Materials[meshData[i].m_MaterialIndex];
         m_Meshes[i].QueryInit(device, rub, meshData[i], material);
     }
+
+    m_Root.QueryInit(data.GetRoot(), m_Meshes);
 }
 
-void Scene::Draw(PGraphicsCommandList commandList) const
+void Scene::Draw(PGraphicsCommandList commandList, const DirectX::XMMATRIX &mvpMatrix) const
 {
-    for (auto &&mesh : m_Meshes)
-        mesh.Draw(commandList);
+    m_Root.Draw(commandList, mvpMatrix);
+    // for (auto &&mesh : m_Meshes)
+    //     mesh.Draw(commandList);
 }

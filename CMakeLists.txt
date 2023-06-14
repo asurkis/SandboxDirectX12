@@ -15,7 +15,7 @@ set(SHADER_FILES
     PixelFilter.hlsl
 )
 
-set(CLASSES
+set(MODULES
     Application
     Game
     MyDXLib/Camera
@@ -51,7 +51,7 @@ foreach(FILE ${SHADER_FILES})
 endforeach()
 
 set(CPP_FILES "")
-foreach(CLS ${CLASSES})
+foreach(CLS ${MODULES})
     SET(CPP_FILES ${CPP_FILES} ${CLS}.cpp ${CLS}.hpp)
 endforeach()
 

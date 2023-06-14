@@ -43,14 +43,26 @@ class Mesh
     void Draw(PGraphicsCommandList commandList) const;
 };
 
+class SceneObject
+{
+    std::vector<std::unique_ptr<SceneObject>> m_Children;
+    std::vector<const Mesh *>                 m_Meshes;
+    DirectX::XMMATRIX                         m_Transform;
+
+  public:
+    void QueryInit(const ObjectData &data, const std::vector<Mesh> &meshes);
+    void Draw(PGraphicsCommandList commandList, const DirectX::XMMATRIX &mvpMatrix) const;
+};
+
 class Scene
 {
     std::vector<Material> m_Materials;
     std::vector<Mesh>     m_Meshes;
+    SceneObject           m_Root;
 
     DescriptorHeap *m_DescriptorHeap;
 
   public:
     void QueryInit(PDevice device, ResourceUploadBatch &rub, DescriptorHeap &descriptorHeap, const SceneData &data);
-    void Draw(PGraphicsCommandList commandList) const;
+    void Draw(PGraphicsCommandList commandList, const DirectX::XMMATRIX &mvpMatrix) const;
 };

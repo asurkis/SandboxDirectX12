@@ -72,23 +72,32 @@ class MeshData
     constexpr size_t IndexCount() const noexcept { return m_IndexCount; }
 };
 
+struct aiNode;
+
 class ObjectData
 {
+    std::vector<std::unique_ptr<ObjectData>> m_Children;
+    std::vector<size_t>                      m_MeshIdx;
+
   public:
     DirectX::XMFLOAT4X4 m_Transform;
-    size_t              m_MeshIndex = 0;
+
+    const std::vector<std::unique_ptr<ObjectData>> &GetChildren() const noexcept { return m_Children; }
+    const std::vector<size_t>                      &GetMeshIdx() const noexcept { return m_MeshIdx; }
+
+    void ParseNode(const aiNode *node);
 };
 
 class SceneData
 {
     std::vector<MaterialData> m_Materials;
     std::vector<MeshData>     m_Meshes;
-    std::vector<ObjectData>   m_Objects;
+    ObjectData                m_RootObject;
 
   public:
     const std::vector<MaterialData> &GetMaterials() const noexcept { return m_Materials; }
     const std::vector<MeshData>     &GetMeshes() const noexcept { return m_Meshes; }
-    const std::vector<ObjectData>   &GetObjects() const noexcept { return m_Objects; }
+    const ObjectData                &GetRoot() const noexcept { return m_RootObject; }
 
     void LoadFromFile(const std::filesystem::path &scenePath);
 
