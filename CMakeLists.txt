@@ -73,6 +73,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     d3d12.lib
     dxgi.lib
     d3dcompiler.lib
+    dxcompiler.lib
     assimp::assimp
     Microsoft::DirectX-Headers
     Microsoft::DirectX-Guids

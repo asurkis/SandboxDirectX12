@@ -2,6 +2,7 @@
 #include "Application.hpp"
 #include "MyDXLib/SceneData.hpp"
 #include <cmath>
+#include <dxcapi.h>
 
 using namespace DirectX;
 
@@ -90,43 +91,93 @@ Game::Game(Application *application, int width, int height)
     m_Camera.Rot = XMFLOAT3(0.0f, 0.0f, 0.0f);
 }
 
+PBlob CompileShader(ComPtr<IDxcCompiler3>        compiler,
+                    ComPtr<IDxcUtils>            utils,
+                    ComPtr<IDxcIncludeHandler>   includeHandler,
+                    const std::filesystem::path &path,
+                    LPCWSTR                      target)
+{
+    std::vector<char> contents;
+    {
+        std::ifstream fin(path, std::ios::binary);
+        fin.ignore((std::numeric_limits<std::streamsize>::max)());
+        std::streamsize size = fin.gcount();
+        contents.resize(size);
+        fin.seekg(0);
+        fin.read(contents.data(), contents.size());
+    }
+
+    ComPtr<IDxcBlobEncoding> sourceBlob;
+    Assert(utils->CreateBlob(contents.data(), contents.size(), CP_UTF8, sourceBlob.ReleaseAndGetAddressOf()));
+
+    std::wstring wIncPath = std::filesystem::path(path).remove_filename();
+
+    std::vector<LPCWSTR> args;
+    args.push_back(L"-T");
+    args.push_back(target);
+    args.push_back(L"-I");
+    args.push_back(wIncPath.c_str());
+
+#ifdef _DEBUG
+    args.push_back(DXC_ARG_DEBUG);
+    args.push_back(DXC_ARG_WARNINGS_ARE_ERRORS);
+#endif
+
+    DxcBuffer sourceBuffer = {};
+    sourceBuffer.Ptr       = sourceBlob->GetBufferPointer();
+    sourceBuffer.Size      = sourceBlob->GetBufferSize();
+
+    ComPtr<IDxcResult> compileResult;
+    Assert(compiler->Compile(&sourceBuffer,
+                             args.data(),
+                             args.size(),
+                             includeHandler.Get(),
+                             IID_PPV_ARGS(compileResult.ReleaseAndGetAddressOf())));
+
+    ComPtr<IDxcBlobUtf8>  errors;
+    ComPtr<IDxcBlobUtf16> name;
+    (compileResult->GetOutput(
+        DXC_OUT_ERRORS, IID_PPV_ARGS(errors.ReleaseAndGetAddressOf()), name.ReleaseAndGetAddressOf()));
+    if (errors && errors->GetBufferSize() > 0)
+        throw std::runtime_error(static_cast<char *>(errors->GetBufferPointer()));
+
+    PBlob object;
+    compileResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&object), name.ReleaseAndGetAddressOf());
+    return object;
+}
+
 void Game::ReloadShaders()
 {
     PDevice device = Application::Get()->GetDevice();
 
-#ifdef _DEBUG
-    // Enable better shader debugging with the graphics debugging tools.
-    UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-    UINT compileFlags = 0;
-#endif
+    ComPtr<IDxcCompiler3>      compiler;
+    ComPtr<IDxcUtils>          utils;
+    ComPtr<IDxcIncludeHandler> includeHandler;
+    Assert(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(compiler.ReleaseAndGetAddressOf())));
+    Assert(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(utils.ReleaseAndGetAddressOf())));
+    Assert(utils->CreateDefaultIncludeHandler(includeHandler.ReleaseAndGetAddressOf()));
 
-    PBlob vertexShaderCubeBlob;
-    PBlob vertexShaderFilterBlob;
-    PBlob vertexShaderSponzaBlob;
-    PBlob pixelShaderCubeBlob;
-    PBlob pixelShaderFilterBlob;
-    PBlob pixelShaderSponzaBlob;
-    PBlob errorBlob;
+    std::filesystem::path sourceRoot = __FILE__;
+    sourceRoot.remove_filename();
 
-    Assert(D3DReadFileToBlob(L"VertexCube.cso", &vertexShaderCubeBlob));
-    Assert(D3DReadFileToBlob(L"VertexSponza.cso", &vertexShaderSponzaBlob));
-    Assert(D3DReadFileToBlob(L"VertexFilter.cso", &vertexShaderFilterBlob));
-    Assert(D3DReadFileToBlob(L"PixelCube.cso", &pixelShaderCubeBlob));
-    Assert(D3DReadFileToBlob(L"PixelSponza.cso", &pixelShaderSponzaBlob));
-    Assert(D3DReadFileToBlob(L"PixelFilter.cso", &pixelShaderFilterBlob));
+    auto objVertexCube   = CompileShader(compiler, utils, includeHandler, sourceRoot / "VertexCube.hlsl", L"vs_6_0");
+    auto objVertexFilter = CompileShader(compiler, utils, includeHandler, sourceRoot / "VertexFilter.hlsl", L"vs_6_0");
+    auto objVertexSponza = CompileShader(compiler, utils, includeHandler, sourceRoot / "VertexSponza.hlsl", L"vs_6_0");
+    auto objPixelCube    = CompileShader(compiler, utils, includeHandler, sourceRoot / "PixelCube.hlsl", L"ps_6_0");
+    auto objPixelFilter  = CompileShader(compiler, utils, includeHandler, sourceRoot / "PixelFilter.hlsl", L"ps_6_0");
+    auto objPixelSponza  = CompileShader(compiler, utils, includeHandler, sourceRoot / "PixelSponza.hlsl", L"ps_6_0");
 
     Assert(device->CreateRootSignature(0,
-                                       vertexShaderCubeBlob->GetBufferPointer(),
-                                       vertexShaderCubeBlob->GetBufferSize(),
+                                       objVertexCube->GetBufferPointer(),
+                                       objVertexCube->GetBufferSize(),
                                        IID_PPV_ARGS(m_RootSignatureCube.ReleaseAndGetAddressOf())));
     Assert(device->CreateRootSignature(0,
-                                       vertexShaderSponzaBlob->GetBufferPointer(),
-                                       vertexShaderSponzaBlob->GetBufferSize(),
+                                       objVertexSponza->GetBufferPointer(),
+                                       objVertexSponza->GetBufferSize(),
                                        IID_PPV_ARGS(m_RootSignatureSponza.ReleaseAndGetAddressOf())));
     Assert(device->CreateRootSignature(0,
-                                       vertexShaderFilterBlob->GetBufferPointer(),
-                                       vertexShaderFilterBlob->GetBufferSize(),
+                                       objVertexFilter->GetBufferPointer(),
+                                       objVertexFilter->GetBufferSize(),
                                        IID_PPV_ARGS(m_RootSignatureFilter.ReleaseAndGetAddressOf())));
 
     D3D12_INPUT_ELEMENT_DESC inputLayoutCube[] = {
@@ -173,8 +224,8 @@ void Game::ReloadShaders()
     D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsDesc = {};
 
     gpsDesc.pRootSignature    = m_RootSignatureCube.Get();
-    gpsDesc.VS                = CD3DX12_SHADER_BYTECODE(vertexShaderCubeBlob.Get());
-    gpsDesc.PS                = CD3DX12_SHADER_BYTECODE(pixelShaderCubeBlob.Get());
+    gpsDesc.VS                = CD3DX12_SHADER_BYTECODE(objVertexCube.Get());
+    gpsDesc.PS                = CD3DX12_SHADER_BYTECODE(objPixelCube.Get());
     gpsDesc.SampleMask        = UINT_MAX;
     gpsDesc.BlendState        = CD3DX12_BLEND_DESC(CD3DX12_DEFAULT());
     gpsDesc.RasterizerState   = CD3DX12_RASTERIZER_DESC(CD3DX12_DEFAULT());
@@ -201,8 +252,8 @@ void Game::ReloadShaders()
 
     gpsDesc                   = {};
     gpsDesc.pRootSignature    = m_RootSignatureSponza.Get();
-    gpsDesc.VS                = CD3DX12_SHADER_BYTECODE(vertexShaderSponzaBlob.Get());
-    gpsDesc.PS                = CD3DX12_SHADER_BYTECODE(pixelShaderSponzaBlob.Get());
+    gpsDesc.VS                = CD3DX12_SHADER_BYTECODE(objVertexSponza.Get());
+    gpsDesc.PS                = CD3DX12_SHADER_BYTECODE(objPixelSponza.Get());
     gpsDesc.SampleMask        = UINT_MAX;
     gpsDesc.BlendState        = CD3DX12_BLEND_DESC(CD3DX12_DEFAULT());
     gpsDesc.RasterizerState   = CD3DX12_RASTERIZER_DESC(CD3DX12_DEFAULT());
@@ -226,8 +277,8 @@ void Game::ReloadShaders()
 
     gpsDesc                 = {};
     gpsDesc.pRootSignature  = m_RootSignatureFilter.Get();
-    gpsDesc.VS              = CD3DX12_SHADER_BYTECODE(vertexShaderFilterBlob.Get());
-    gpsDesc.PS              = CD3DX12_SHADER_BYTECODE(pixelShaderFilterBlob.Get());
+    gpsDesc.VS              = CD3DX12_SHADER_BYTECODE(objVertexFilter.Get());
+    gpsDesc.PS              = CD3DX12_SHADER_BYTECODE(objPixelFilter.Get());
     gpsDesc.SampleMask      = UINT_MAX;
     gpsDesc.BlendState      = CD3DX12_BLEND_DESC(CD3DX12_DEFAULT());
     gpsDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(CD3DX12_DEFAULT());

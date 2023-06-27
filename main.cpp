@@ -13,14 +13,13 @@ int CALLBACK wWinMain(_In_ HINSTANCE     hInstance,
     try
     {
         Assert(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED));
-
         SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
         Application application(hInstance);
         return application.Run(nShowCmd);
     }
     catch (const std::exception &e)
     {
-        std::cerr << e.what() << std::endl;
+        OutputDebugStringA(e.what());
         return -1;
     }
 }
