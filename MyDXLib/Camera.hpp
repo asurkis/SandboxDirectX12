@@ -40,6 +40,12 @@ class Camera
         XMVECTOR quat     = CalcQuaternion();
         XMMATRIX rotation = XMMatrixRotationQuaternion(quat * XMVectorSet(1.0f, 1.0f, 1.0f, -1.0f));
         XMMATRIX position = XMMatrixTranslation(-Pos.x, -Pos.y, -Pos.z);
+        return position * rotation;
+    }
+
+    DirectX::XMMATRIX CalcProjection()
+    {
+        using namespace DirectX;
 
         float widthRev  = 1.0f / (xyz2.x - xyz1.x);
         float heightRev = 1.0f / (xyz2.y - xyz1.y);
@@ -62,6 +68,6 @@ class Camera
                                           (Depth1 - Depth2) * xyz1.z * xyz2.z * depthRev, // row 2 col 3
                                           0.0f                                            // row 3 col 3
         );
-        return position * rotation * projection;
+        return projection;
     }
 };
