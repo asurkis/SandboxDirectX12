@@ -4,7 +4,7 @@
     "        | DENY_HULL_SHADER_ROOT_ACCESS                                        " \
     "        | DENY_DOMAIN_SHADER_ROOT_ACCESS                                      " \
     "        | DENY_GEOMETRY_SHADER_ROOT_ACCESS),                                  " \
-    "RootConstants(b0, num32BitConstants=32, visibility=SHADER_VISIBILITY_VERTEX), " \
+    "RootConstants(b0, num32BitConstants=48, visibility=SHADER_VISIBILITY_VERTEX), " \
     "DescriptorTable(SRV(t0), visibility=SHADER_VISIBILITY_PIXEL),                 " \
     "StaticSampler(s0,                                                             " \
     "    filter = FILTER_ANISOTROPIC,                                              " \

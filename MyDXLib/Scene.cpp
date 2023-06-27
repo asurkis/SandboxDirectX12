@@ -108,16 +108,22 @@ void SceneObject::QueryInit(const ObjectData &data, const std::vector<Mesh> &mes
     }
 }
 
-void SceneObject::Draw(PGraphicsCommandList commandList, const XMMATRIX &matrix) const
+void SceneObject::Draw(PGraphicsCommandList     commandList,
+                       const DirectX::XMMATRIX &model,
+                       const DirectX::XMMATRIX &view,
+                       const DirectX::XMMATRIX &projection) const
 {
-    XMMATRIX accMatrix = matrix * m_Transform;
-    commandList->SetGraphicsRoot32BitConstants(0, 16, &accMatrix, 0);
+    XMMATRIX constants[3];
+    constants[0] = m_Transform * model;
+    constants[1] = view;
+    constants[2] = projection;
+    commandList->SetGraphicsRoot32BitConstants(0, 48, &constants, 0);
 
     for (const Mesh *mesh : m_Meshes)
         mesh->Draw(commandList);
 
     for (auto &child : m_Children)
-        child->Draw(commandList, accMatrix);
+        child->Draw(commandList, constants[0], view, projection);
 }
 
 void Scene::QueryInit(PDevice device, ResourceUploadBatch &rub, DescriptorHeap &descriptorHeap, const SceneData &data)
@@ -138,8 +144,15 @@ void Scene::QueryInit(PDevice device, ResourceUploadBatch &rub, DescriptorHeap &
     size_t takenId = 1;
     for (auto &&path : texturePaths)
     {
+        // if (m_Textures.empty())
+        // {
         m_Textures.emplace_back(device, rub, descriptorHeap, path.c_str(), takenId++);
         textureMapping[path] = &m_Textures[m_Textures.size() - 1];
+        // }
+        // else
+        // {
+        //     textureMapping[path] = &m_Textures[0];
+        // }
     }
 
     for (size_t i = 0; i < materialData.size(); ++i)
@@ -156,9 +169,12 @@ void Scene::QueryInit(PDevice device, ResourceUploadBatch &rub, DescriptorHeap &
     m_Root.QueryInit(data.GetRoot(), m_Meshes);
 }
 
-void Scene::Draw(PGraphicsCommandList commandList, const DirectX::XMMATRIX &matrix) const
+void Scene::Draw(PGraphicsCommandList     commandList,
+                 const DirectX::XMMATRIX &model,
+                 const DirectX::XMMATRIX &view,
+                 const DirectX::XMMATRIX &projection) const
 {
-    m_Root.Draw(commandList, matrix);
+    m_Root.Draw(commandList, model, view, projection);
     // for (auto &&mesh : m_Meshes)
     //     mesh.Draw(commandList);
 }

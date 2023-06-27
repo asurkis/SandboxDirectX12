@@ -59,7 +59,10 @@ class SceneObject
 
   public:
     void QueryInit(const ObjectData &data, const std::vector<Mesh> &meshes);
-    void Draw(PGraphicsCommandList commandList, const DirectX::XMMATRIX &matrix) const;
+    void Draw(PGraphicsCommandList     commandList,
+              const DirectX::XMMATRIX &model,
+              const DirectX::XMMATRIX &view,
+              const DirectX::XMMATRIX &projection) const;
 };
 
 class Scene
@@ -73,5 +76,8 @@ class Scene
 
   public:
     void QueryInit(PDevice device, ResourceUploadBatch &rub, DescriptorHeap &descriptorHeap, const SceneData &data);
-    void Draw(PGraphicsCommandList commandList, const DirectX::XMMATRIX &matrix) const;
+    void Draw(PGraphicsCommandList     commandList,
+              const DirectX::XMMATRIX &model,
+              const DirectX::XMMATRIX &view,
+              const DirectX::XMMATRIX &projection) const;
 };

@@ -59,8 +59,8 @@ Game::Game(Application *application, int width, int height)
     cubeData.InitData(g_CubeVertices, _countof(g_CubeVertices), g_CubeIndices, _countof(g_CubeIndices));
     fullScreenData.InitVertices(g_FullScreen, 6);
 
-    // sponzaData.LoadFromFile("C:\\Users\\asurk\\Documents\\Main.1_Sponza\\", "NewSponza_Main_glTF_002.gltf");
-    SceneData             sponzaData;
+    SceneData sponzaData;
+    // sponzaData.LoadFromFile("C:\\Users\\asurk\\Documents\\3rd-party\\Main.1_Sponza\\NewSponza_Main_glTF_002.gltf");
     std::filesystem::path scenePath
         = std::filesystem::path(__FILE__).remove_filename() / "3rd-party" / "Sponza" / "glTF" / "Sponza.gltf";
     sponzaData.LoadFromFile(scenePath);
@@ -443,16 +443,17 @@ void Game::OnRender()
 
     commandList->SetGraphicsRootSignature(m_RootSignatureCube.Get());
 
-    XMMATRIX cameraMatrix     = m_Camera.CalcMatrix();
+    XMMATRIX viewMatrix       = m_Camera.CalcMatrix();
     XMMATRIX projectionMatrix = m_Camera.CalcProjection();
     // XMMATRIX mvpMatrix        = m_ModelMatrix * cameraMatrix;
     // m_CubeMesh.Draw(commandList);
 
     commandList->SetPipelineState((m_ZLess ? m_PipelineStateSponzaLess : m_PipelineStateSponzaGreater).Get());
     commandList->SetGraphicsRootSignature(m_RootSignatureSponza.Get());
-    commandList->SetGraphicsRoot32BitConstants(0, 16, &projectionMatrix, 16);
+    // commandList->SetGraphicsRoot32BitConstants(0, 16, &viewMatrix, 16);
+    // commandList->SetGraphicsRoot32BitConstants(0, 16, &projectionMatrix, 32);
     // commandList->SetGraphicsRoot32BitConstants(0, 16, &cameraMatrix, 0);
-    m_SponzaScene.Draw(commandList, cameraMatrix);
+    m_SponzaScene.Draw(commandList, XMMatrixIdentity(), viewMatrix, projectionMatrix);
 
     TransitionResource(
         commandList, m_ColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
