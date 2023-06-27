@@ -208,12 +208,24 @@ void Game::ReloadShaders()
     Assert(device->CreateGraphicsPipelineState(&gpsDesc,
                                                IID_PPV_ARGS(m_PipelineStateSponzaGreater.ReleaseAndGetAddressOf())));
 
-    gpsDesc                 = {};
-    gpsDesc.pRootSignature  = m_RootSignatureFilter.Get();
-    gpsDesc.VS              = CD3DX12_SHADER_BYTECODE(objVertexFilter.Get());
-    gpsDesc.PS              = CD3DX12_SHADER_BYTECODE(objPixelFilter.Get());
-    gpsDesc.SampleMask      = UINT_MAX;
-    gpsDesc.BlendState      = CD3DX12_BLEND_DESC(CD3DX12_DEFAULT());
+    gpsDesc                = {};
+    gpsDesc.pRootSignature = m_RootSignatureFilter.Get();
+    gpsDesc.VS             = CD3DX12_SHADER_BYTECODE(objVertexFilter.Get());
+    gpsDesc.PS             = CD3DX12_SHADER_BYTECODE(objPixelFilter.Get());
+    gpsDesc.SampleMask     = UINT_MAX;
+    gpsDesc.BlendState     = CD3DX12_BLEND_DESC();
+
+    gpsDesc.BlendState.RenderTarget[0].BlendEnable           = TRUE;
+    gpsDesc.BlendState.RenderTarget[0].LogicOpEnable         = FALSE;
+    gpsDesc.BlendState.RenderTarget[0].SrcBlend              = D3D12_BLEND_SRC_ALPHA;
+    gpsDesc.BlendState.RenderTarget[0].DestBlend             = D3D12_BLEND_INV_SRC_ALPHA;
+    gpsDesc.BlendState.RenderTarget[0].BlendOp               = D3D12_BLEND_OP_ADD;
+    gpsDesc.BlendState.RenderTarget[0].SrcBlendAlpha         = D3D12_BLEND_ONE;
+    gpsDesc.BlendState.RenderTarget[0].DestBlendAlpha        = D3D12_BLEND_ZERO;
+    gpsDesc.BlendState.RenderTarget[0].BlendOpAlpha          = D3D12_BLEND_OP_ADD;
+    gpsDesc.BlendState.RenderTarget[0].LogicOp               = D3D12_LOGIC_OP_NOOP;
+    gpsDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
     gpsDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(CD3DX12_DEFAULT());
     // gpsDesc.DepthStencilState;
     gpsDesc.InputLayout.pInputElementDescs = inputLayoutFilter;

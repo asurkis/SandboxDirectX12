@@ -27,5 +27,19 @@ float4 main(VertexShaderOutput IN) : SV_Target
     float3 ambient = float3(0.25f, 0.25f, 0.25f);
     float3 lighting = ambient + diffuse;
     float4 base = BaseColorTexture.Sample(DefaultSampler, IN.uv);
-    return float4(base.xyz * lighting, 1.0f);
+    /*
+    if ((int(IN.ScreenPos.x) + int(IN.ScreenPos.y)) % 2 == 0)
+    {
+        base = BaseColorTexture.Sample(DefaultSampler, IN.uv);
+    }
+    else
+    {
+        base = BaseColorTexture.Sample(DefaultSampler, IN.uv / 0.0f);
+        base = float4(0.0f, 0.0f, 0.0f, 1.0f);
+    }
+    */
+    // return base.aaaa;
+    if (base.w < 0.875)
+        discard;
+    return float4(base.xyz * lighting, base.w);
 }
