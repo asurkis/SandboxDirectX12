@@ -1,4 +1,4 @@
-#include "RootSignatureSponza.hlsl"
+#include "RootSignatureSponza.inc"
 
 struct VertexPosColor
 {

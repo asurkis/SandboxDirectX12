@@ -28,6 +28,9 @@
     <ClCompile Include="C:\Users\asurk\Documents\SandboxDirectX12\MyDXLib\SceneData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\asurk\Documents\SandboxDirectX12\MyDXLib\ShaderCompiler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\asurk\Documents\SandboxDirectX12\MyDXLib\Utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -55,6 +58,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\asurk\Documents\SandboxDirectX12\MyDXLib\SceneData.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\asurk\Documents\SandboxDirectX12\MyDXLib\ShaderCompiler.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\asurk\Documents\SandboxDirectX12\MyDXLib\Utils.hpp">

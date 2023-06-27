@@ -1,4 +1,4 @@
-#include "RootSignature2.hlsl"
+#include "RootSignatureFilter.inc"
 
 Texture2D Frame : register(t0);
 
@@ -16,7 +16,7 @@ bool IsPrime(int x)
     return true;
 }
 
-[RootSignature(ROOT_SIGNATURE_2)]
+[RootSignature(ROOT_SIGNATURE_FILTER)]
 float4 main(VertexShaderOutput IN) : SV_Target
 {
     int2 pos = int2(IN.Position.xy);

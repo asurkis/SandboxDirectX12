@@ -12,5 +12,10 @@
     <FXCompile Include="C:\Users\asurk\Documents\SandboxDirectX12\PixelFilter.hlsl" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="C:\Users\asurk\Documents\SandboxDirectX12\RootSignatureCube.inc" />
+    <None Include="C:\Users\asurk\Documents\SandboxDirectX12\RootSignatureSponza.inc" />
+    <None Include="C:\Users\asurk\Documents\SandboxDirectX12\RootSignatureFilter.inc" />
+  </ItemGroup>
+  <ItemGroup>
   </ItemGroup>
 </Project>

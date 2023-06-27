@@ -6,7 +6,7 @@ find_package( assimp          PATHS 3rd-party/assimp          NO_DEFAULT_PATH RE
 find_package( DirectX-Headers PATHS 3rd-party/DirectX-Headers NO_DEFAULT_PATH REQUIRED )
 find_package( DirectXTK12     PATHS 3rd-party/DirectXTK12     NO_DEFAULT_PATH REQUIRED )
 
-set(SHADER_FILES
+set(SHADER_SOURCES
     VertexCube.hlsl
     VertexSponza.hlsl
     VertexFilter.hlsl
@@ -14,6 +14,25 @@ set(SHADER_FILES
     PixelSponza.hlsl
     PixelFilter.hlsl
 )
+
+set(SHADER_FILES
+    ${SHADER_SOURCES}
+    RootSignatureCube.inc
+    RootSignatureSponza.inc
+    RootSignatureFilter.inc
+)
+
+set(DLLS
+    3rd-party/assimp/bin/assimp-vc143-mt.dll
+    3rd-party/assimp/bin/assimp-vc143-mtd.dll
+    3rd-party/dxcompiler.dll
+    3rd-party/dxil.dll
+)
+
+foreach(FILE ${DLLS})
+    get_filename_component(FILE_NAME "${FILE}" NAME)
+    configure_file("${FILE}" "${PROJECT_BINARY_DIR}/${FILE_NAME}" COPYONLY)
+endforeach()
 
 set(MODULES
     Application
@@ -27,7 +46,7 @@ set(MODULES
     MyDXLib/Utils
 )
 
-# add_custom_target(Shaders SOURCES ${SHADER_FILES})
+add_custom_target(Shaders SOURCES ${SHADER_FILES})
 
 set_source_files_properties( VertexCube.hlsl   PROPERTIES ShaderType vs VS_SHADER_TYPE Vertex )
 set_source_files_properties( VertexSponza.hlsl PROPERTIES ShaderType vs VS_SHADER_TYPE Vertex )
@@ -36,7 +55,7 @@ set_source_files_properties(  PixelCube.hlsl   PROPERTIES ShaderType ps VS_SHADE
 set_source_files_properties(  PixelSponza.hlsl PROPERTIES ShaderType ps VS_SHADER_TYPE  Pixel )
 set_source_files_properties(  PixelFilter.hlsl PROPERTIES ShaderType ps VS_SHADER_TYPE  Pixel )
 
-foreach(FILE ${SHADER_FILES})
+foreach(FILE ${SHADER_SOURCES})
     set_source_files_properties(${FILE} PROPERTIES VS_SHADER_MODEL 6.0)
     # configure_file("${FILE}" "${PROJECT_BINARY_DIR}/${FILE}" COPYONLY)
     # get_filename_component(FILE_WE "${FILE}" NAME_WE)
@@ -68,7 +87,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE pch.hpp)
 
-# add_dependencies(${PROJECT_NAME} Shaders)
+add_dependencies(${PROJECT_NAME} Shaders)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     d3d12.lib
@@ -80,3 +99,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Microsoft::DirectX-Guids
     Microsoft::DirectXTK12
 )
+
+set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})

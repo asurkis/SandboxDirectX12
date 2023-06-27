@@ -1,4 +1,4 @@
-#include "RootSignature2.hlsl"
+#include "RootSignatureFilter.inc"
 
 struct VertexShaderOutput
 {
@@ -6,7 +6,7 @@ struct VertexShaderOutput
     float2 uv : UV;
 };
 
-[RootSignature(ROOT_SIGNATURE_2)]
+[RootSignature(ROOT_SIGNATURE_FILTER)]
 VertexShaderOutput main(float2 uv : UV)
 {
     VertexShaderOutput OUT;

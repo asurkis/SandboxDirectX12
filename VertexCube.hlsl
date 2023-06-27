@@ -1,4 +1,4 @@
-#include "RootSignature1.hlsl"
+#include "RootSignatureCube.inc"
 
 struct VertexPosColor
 {
@@ -19,7 +19,7 @@ struct VertexShaderOutput
     float4 Color : COLOR;
 };
 
-[RootSignature(ROOT_SIGNATURE_1)]
+[RootSignature(ROOT_SIGNATURE_CUBE)]
 VertexShaderOutput main(VertexPosColor IN)
 {
     VertexShaderOutput OUT;
