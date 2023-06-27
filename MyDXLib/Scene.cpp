@@ -27,19 +27,10 @@ void Texture::Draw(PGraphicsCommandList commandList) const
     commandList->SetGraphicsRootDescriptorTable(1, m_DescriptorHeap.GetGpuHandle(m_DescriptorId));
 }
 
-Material::Material(
-    PDevice device, ResourceUploadBatch &rub, DescriptorHeap &heap, const MaterialData &data, size_t &takenId)
+Material::Material(std::unordered_map<std::wstring_view, Texture *> textures, const MaterialData &data)
 {
     for (size_t i = 0; i < TEXTURE_TYPE_COUNT; ++i)
-    {
-        size_t id = takenId++;
-
-        if (data.TexturePaths[i].empty())
-            continue;
-
-        // TODO: memory leak
-        m_Textures[i] = new Texture(device, rub, heap, data.TexturePaths[i].c_str(), id);
-    }
+        m_Textures[i] = textures[data.TexturePaths[i]];
 }
 
 void Material::Draw(PGraphicsCommandList commandList) const
@@ -117,9 +108,9 @@ void SceneObject::QueryInit(const ObjectData &data, const std::vector<Mesh> &mes
     }
 }
 
-void SceneObject::Draw(PGraphicsCommandList commandList, const XMMATRIX &mvpMatrix) const
+void SceneObject::Draw(PGraphicsCommandList commandList, const XMMATRIX &matrix) const
 {
-    XMMATRIX accMatrix = m_Transform * mvpMatrix;
+    XMMATRIX accMatrix = matrix * m_Transform;
     commandList->SetGraphicsRoot32BitConstants(0, 16, &accMatrix, 0);
 
     for (const Mesh *mesh : m_Meshes)
@@ -131,18 +122,30 @@ void SceneObject::Draw(PGraphicsCommandList commandList, const XMMATRIX &mvpMatr
 
 void Scene::QueryInit(PDevice device, ResourceUploadBatch &rub, DescriptorHeap &descriptorHeap, const SceneData &data)
 {
+    auto &&texturePaths = data.GetTexturePaths();
     auto &&materialData = data.GetMaterials();
     auto &&meshData     = data.GetMeshes();
 
+    std::unordered_map<std::wstring_view, Texture *> textureMapping;
+    textureMapping[L""] = nullptr;
+
+    m_Textures.clear();
+    m_Textures.reserve(texturePaths.size());
     m_Materials.clear();
     m_Materials.reserve(materialData.size());
     m_Meshes.resize(meshData.size());
 
     size_t takenId = 1;
-    for (std::size_t i = 0; i < materialData.size(); ++i)
-        m_Materials.emplace_back(device, rub, descriptorHeap, materialData[i], takenId);
+    for (auto &&path : texturePaths)
+    {
+        m_Textures.emplace_back(device, rub, descriptorHeap, path.c_str(), takenId++);
+        textureMapping[path] = &m_Textures[m_Textures.size() - 1];
+    }
 
-    for (std::size_t i = 0; i < meshData.size(); ++i)
+    for (size_t i = 0; i < materialData.size(); ++i)
+        m_Materials.emplace_back(textureMapping, materialData[i]);
+
+    for (size_t i = 0; i < meshData.size(); ++i)
     {
         Material *material = nullptr;
         if (meshData[i].m_MaterialIndex < m_Materials.size())
@@ -153,9 +156,9 @@ void Scene::QueryInit(PDevice device, ResourceUploadBatch &rub, DescriptorHeap &
     m_Root.QueryInit(data.GetRoot(), m_Meshes);
 }
 
-void Scene::Draw(PGraphicsCommandList commandList, const DirectX::XMMATRIX &mvpMatrix) const
+void Scene::Draw(PGraphicsCommandList commandList, const DirectX::XMMATRIX &matrix) const
 {
-    m_Root.Draw(commandList, mvpMatrix);
+    m_Root.Draw(commandList, matrix);
     // for (auto &&mesh : m_Meshes)
     //     mesh.Draw(commandList);
 }

@@ -71,7 +71,9 @@ void SceneData::LoadFromFile(const std::filesystem::path &scenePath)
     {                                                                                                                  \
         if (material->GetTexture(aiTextureType_##x, 0, &texturePath) == aiReturn_SUCCESS)                              \
         {                                                                                                              \
-            m_Materials[i].TexturePaths[TEXTURE_TYPE_##x] = sceneDirW + converter.from_bytes(texturePath.C_Str());     \
+            std::wstring thisPath                         = sceneDirW + converter.from_bytes(texturePath.C_Str());     \
+            m_Materials[i].TexturePaths[TEXTURE_TYPE_##x] = thisPath;                                                  \
+            m_TexturePaths.insert(thisPath);                                                                           \
         }                                                                                                              \
     }
         ENUM_TEXTURE_TYPES

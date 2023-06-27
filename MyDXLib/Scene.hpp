@@ -25,12 +25,7 @@ class Material
     Texture *m_Textures[TEXTURE_TYPE_COUNT] = {};
 
   public:
-    Material(PDevice                  device,
-             ResourceUploadBatch     &rub,
-             DirectX::DescriptorHeap &heap,
-             const MaterialData      &data,
-             size_t                  &takenId);
-
+    Material(std::unordered_map<std::wstring_view, Texture *> textures, const MaterialData &data);
     void Draw(PGraphicsCommandList commandList) const;
 };
 
@@ -64,11 +59,12 @@ class SceneObject
 
   public:
     void QueryInit(const ObjectData &data, const std::vector<Mesh> &meshes);
-    void Draw(PGraphicsCommandList commandList, const DirectX::XMMATRIX &mvpMatrix) const;
+    void Draw(PGraphicsCommandList commandList, const DirectX::XMMATRIX &matrix) const;
 };
 
 class Scene
 {
+    std::vector<Texture>  m_Textures;
     std::vector<Material> m_Materials;
     std::vector<Mesh>     m_Meshes;
     SceneObject           m_Root;
@@ -77,5 +73,5 @@ class Scene
 
   public:
     void QueryInit(PDevice device, ResourceUploadBatch &rub, DescriptorHeap &descriptorHeap, const SceneData &data);
-    void Draw(PGraphicsCommandList commandList, const DirectX::XMMATRIX &mvpMatrix) const;
+    void Draw(PGraphicsCommandList commandList, const DirectX::XMMATRIX &matrix) const;
 };

@@ -96,11 +96,12 @@ class SceneData
     ObjectData                       m_RootObject;
 
   public:
-    const std::vector<MaterialData> &GetMaterials() const noexcept { return m_Materials; }
-    const std::vector<MeshData>     &GetMeshes() const noexcept { return m_Meshes; }
-    const ObjectData                &GetRoot() const noexcept { return m_RootObject; }
+    const std::unordered_set<std::wstring> &GetTexturePaths() const noexcept { return m_TexturePaths; }
+    const std::vector<MaterialData>        &GetMaterials() const noexcept { return m_Materials; }
+    const std::vector<MeshData>            &GetMeshes() const noexcept { return m_Meshes; }
+    const ObjectData                       &GetRoot() const noexcept { return m_RootObject; }
 
     void LoadFromFile(const std::filesystem::path &scenePath);
 
-    size_t TextureCount() const noexcept { return m_Materials.size() * TEXTURE_TYPE_COUNT; }
+    size_t TextureCount() const noexcept { return m_TexturePaths.size(); }
 };
