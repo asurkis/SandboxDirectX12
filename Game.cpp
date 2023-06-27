@@ -1,8 +1,6 @@
 #include "Game.hpp"
 #include "Application.hpp"
 #include "MyDXLib/SceneData.hpp"
-#include <cmath>
-#include <dxcapi.h>
 
 using namespace DirectX;
 
@@ -62,8 +60,8 @@ Game::Game(Application *application, int width, int height)
     fullScreenData.InitVertices(g_FullScreen, 6);
 
     // sponzaData.LoadFromFile("C:\\Users\\asurk\\Documents\\Main.1_Sponza\\", "NewSponza_Main_glTF_002.gltf");
-    SceneData sponzaData;
-    auto      scenePath
+    SceneData             sponzaData;
+    std::filesystem::path scenePath
         = std::filesystem::path(__FILE__).remove_filename() / "3rd-party" / "Sponza" / "glTF" / "Sponza.gltf";
     sponzaData.LoadFromFile(scenePath);
 
@@ -91,81 +89,16 @@ Game::Game(Application *application, int width, int height)
     m_Camera.Rot = XMFLOAT3(0.0f, 0.0f, 0.0f);
 }
 
-PBlob CompileShader(ComPtr<IDxcCompiler3>        compiler,
-                    ComPtr<IDxcUtils>            utils,
-                    ComPtr<IDxcIncludeHandler>   includeHandler,
-                    const std::filesystem::path &path,
-                    LPCWSTR                      target)
-{
-    std::vector<char> contents;
-    {
-        std::ifstream fin(path, std::ios::binary);
-        fin.ignore((std::numeric_limits<std::streamsize>::max)());
-        std::streamsize size = fin.gcount();
-        contents.resize(size);
-        fin.seekg(0);
-        fin.read(contents.data(), contents.size());
-    }
-
-    ComPtr<IDxcBlobEncoding> sourceBlob;
-    Assert(utils->CreateBlob(contents.data(), contents.size(), CP_UTF8, sourceBlob.ReleaseAndGetAddressOf()));
-
-    std::wstring wIncPath = std::filesystem::path(path).remove_filename();
-
-    std::vector<LPCWSTR> args;
-    args.push_back(L"-T");
-    args.push_back(target);
-    args.push_back(L"-I");
-    args.push_back(wIncPath.c_str());
-
-#ifdef _DEBUG
-    args.push_back(DXC_ARG_DEBUG);
-    args.push_back(DXC_ARG_WARNINGS_ARE_ERRORS);
-#endif
-
-    DxcBuffer sourceBuffer = {};
-    sourceBuffer.Ptr       = sourceBlob->GetBufferPointer();
-    sourceBuffer.Size      = sourceBlob->GetBufferSize();
-
-    ComPtr<IDxcResult> compileResult;
-    Assert(compiler->Compile(&sourceBuffer,
-                             args.data(),
-                             args.size(),
-                             includeHandler.Get(),
-                             IID_PPV_ARGS(compileResult.ReleaseAndGetAddressOf())));
-
-    ComPtr<IDxcBlobUtf8>  errors;
-    ComPtr<IDxcBlobUtf16> name;
-    (compileResult->GetOutput(
-        DXC_OUT_ERRORS, IID_PPV_ARGS(errors.ReleaseAndGetAddressOf()), name.ReleaseAndGetAddressOf()));
-    if (errors && errors->GetBufferSize() > 0)
-        throw std::runtime_error(static_cast<char *>(errors->GetBufferPointer()));
-
-    PBlob object;
-    compileResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&object), name.ReleaseAndGetAddressOf());
-    return object;
-}
-
 void Game::ReloadShaders()
 {
     PDevice device = Application::Get()->GetDevice();
 
-    ComPtr<IDxcCompiler3>      compiler;
-    ComPtr<IDxcUtils>          utils;
-    ComPtr<IDxcIncludeHandler> includeHandler;
-    Assert(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(compiler.ReleaseAndGetAddressOf())));
-    Assert(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(utils.ReleaseAndGetAddressOf())));
-    Assert(utils->CreateDefaultIncludeHandler(includeHandler.ReleaseAndGetAddressOf()));
-
-    std::filesystem::path sourceRoot = __FILE__;
-    sourceRoot.remove_filename();
-
-    auto objVertexCube   = CompileShader(compiler, utils, includeHandler, sourceRoot / "VertexCube.hlsl", L"vs_6_0");
-    auto objVertexFilter = CompileShader(compiler, utils, includeHandler, sourceRoot / "VertexFilter.hlsl", L"vs_6_0");
-    auto objVertexSponza = CompileShader(compiler, utils, includeHandler, sourceRoot / "VertexSponza.hlsl", L"vs_6_0");
-    auto objPixelCube    = CompileShader(compiler, utils, includeHandler, sourceRoot / "PixelCube.hlsl", L"ps_6_0");
-    auto objPixelFilter  = CompileShader(compiler, utils, includeHandler, sourceRoot / "PixelFilter.hlsl", L"ps_6_0");
-    auto objPixelSponza  = CompileShader(compiler, utils, includeHandler, sourceRoot / "PixelSponza.hlsl", L"ps_6_0");
+    PBlob objVertexCube   = m_ShaderCompiler.CompileVS(L"VertexCube.hlsl");
+    PBlob objVertexFilter = m_ShaderCompiler.CompileVS(L"VertexFilter.hlsl");
+    PBlob objVertexSponza = m_ShaderCompiler.CompileVS(L"VertexSponza.hlsl");
+    PBlob objPixelCube    = m_ShaderCompiler.CompilePS(L"PixelCube.hlsl");
+    PBlob objPixelFilter  = m_ShaderCompiler.CompilePS(L"PixelFilter.hlsl");
+    PBlob objPixelSponza  = m_ShaderCompiler.CompilePS(L"PixelSponza.hlsl");
 
     Assert(device->CreateRootSignature(0,
                                        objVertexCube->GetBufferPointer(),

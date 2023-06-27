@@ -64,7 +64,16 @@ LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
         case VK_SPACE: g_Instance->m_Game->m_ShakeStrength = 1.0; break;
         case '0': g_Instance->m_Game->m_FovStep = 0; break;
         case 'Z': g_Instance->m_Game->m_ZLess ^= true; break;
-        case 'R': g_Instance->m_Game->ReloadShaders(); break;
+        case 'R':
+            try
+            {
+                g_Instance->m_Game->ReloadShaders();
+            }
+            catch (const std::runtime_error &e)
+            {
+                OutputDebugStringA(e.what());
+            }
+            break;
 
         case 'W': g_Instance->m_Game->m_MoveForward = true; break;
         case 'A': g_Instance->m_Game->m_MoveLeft = true; break;

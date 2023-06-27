@@ -4,6 +4,7 @@
 
 #include "MyDXLib/Camera.hpp"
 #include "MyDXLib/Scene.hpp"
+#include "MyDXLib/ShaderCompiler.hpp"
 #include "MyDXLib/Utils.hpp"
 
 class Application;
@@ -19,6 +20,8 @@ class Game
 
     std::optional<DescriptorHeap> m_DSVHeap;
     std::optional<DescriptorHeap> m_TextureHeap;
+
+    ShaderCompiler m_ShaderCompiler{std::move(std::filesystem::path(__FILE__).remove_filename())};
 
     PRootSignature m_RootSignatureCube;
     PRootSignature m_RootSignatureFilter;
@@ -44,7 +47,7 @@ class Game
     bool m_ContentLoaded = false;
 
   public:
-    Game(Application *application, int width, int height);
+    explicit Game(Application *application, int width, int height);
 
     void ReloadShaders();
     void ResizeBuffers(int width, int height);

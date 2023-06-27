@@ -23,10 +23,11 @@ set(MODULES
     MyDXLib/MainWindow
     MyDXLib/Scene
     MyDXLib/SceneData
+    MyDXLib/ShaderCompiler
     MyDXLib/Utils
 )
 
-add_custom_target(Shaders SOURCES ${SHADER_FILES})
+# add_custom_target(Shaders SOURCES ${SHADER_FILES})
 
 set_source_files_properties( VertexCube.hlsl   PROPERTIES ShaderType vs VS_SHADER_TYPE Vertex )
 set_source_files_properties( VertexSponza.hlsl PROPERTIES ShaderType vs VS_SHADER_TYPE Vertex )
@@ -37,22 +38,22 @@ set_source_files_properties(  PixelFilter.hlsl PROPERTIES ShaderType ps VS_SHADE
 
 foreach(FILE ${SHADER_FILES})
     set_source_files_properties(${FILE} PROPERTIES VS_SHADER_MODEL 6.0)
-    configure_file("${FILE}" "${PROJECT_BINARY_DIR}/${FILE}" COPYONLY)
-    get_filename_component(FILE_WE "${FILE}" NAME_WE)
-    get_source_file_property(SHADER_TYPE "${FILE}" ShaderType)
-    add_custom_command(
-        TARGET Shaders
-        COMMAND dxc.exe
-            -T "${SHADER_TYPE}_6_0"
-            -Zi
-            -Fo "${FILE_WE}.cso"
-            -Fd "${FILE_WE}.pdb"
-            "${PROJECT_SOURCE_DIR}/${FILE}")
+    # configure_file("${FILE}" "${PROJECT_BINARY_DIR}/${FILE}" COPYONLY)
+    # get_filename_component(FILE_WE "${FILE}" NAME_WE)
+    # get_source_file_property(SHADER_TYPE "${FILE}" ShaderType)
+    # add_custom_command(
+    #     TARGET Shaders
+    #     COMMAND dxc.exe
+    #         -T "${SHADER_TYPE}_6_0"
+    #         -Zi
+    #         -Fo "${FILE_WE}.cso"
+    #         -Fd "${FILE_WE}.pdb"
+    #         "${PROJECT_SOURCE_DIR}/${FILE}")
 endforeach()
 
 set(CPP_FILES "")
 foreach(CLS ${MODULES})
-    SET(CPP_FILES ${CPP_FILES} ${CLS}.cpp ${CLS}.hpp)
+    set(CPP_FILES ${CPP_FILES} ${CLS}.cpp ${CLS}.hpp)
 endforeach()
 
 add_executable(${PROJECT_NAME} WIN32 main.cpp pch.hpp ${CPP_FILES})
@@ -67,12 +68,12 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE pch.hpp)
 
-add_dependencies(${PROJECT_NAME} Shaders)
+# add_dependencies(${PROJECT_NAME} Shaders)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     d3d12.lib
     dxgi.lib
-    d3dcompiler.lib
+    # d3dcompiler.lib
     dxcompiler.lib
     assimp::assimp
     Microsoft::DirectX-Headers
