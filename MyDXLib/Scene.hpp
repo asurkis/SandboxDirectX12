@@ -4,12 +4,25 @@
 
 #include "SceneData.hpp"
 
-class Material
+class Texture
 {
     DescriptorHeap &m_DescriptorHeap;
-    PResource       m_Textures[TEXTURE_TYPE_COUNT];
-    PResource       m_Samplers[TEXTURE_TYPE_COUNT];
-    size_t          m_DescriptorIdx[TEXTURE_TYPE_COUNT] = {};
+    PResource       m_Data;
+    size_t          m_DescriptorId;
+
+  public:
+    Texture(PDevice                  device,
+            ResourceUploadBatch     &rub,
+            DirectX::DescriptorHeap &heap,
+            const wchar_t           *path,
+            size_t                   descriptorId);
+
+    void Draw(PGraphicsCommandList commandList) const;
+};
+
+class Material
+{
+    Texture *m_Textures[TEXTURE_TYPE_COUNT] = {};
 
   public:
     Material(PDevice                  device,

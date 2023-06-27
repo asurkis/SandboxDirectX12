@@ -90,9 +90,10 @@ class ObjectData
 
 class SceneData
 {
-    std::vector<MaterialData> m_Materials;
-    std::vector<MeshData>     m_Meshes;
-    ObjectData                m_RootObject;
+    std::unordered_set<std::wstring> m_TexturePaths;
+    std::vector<MaterialData>        m_Materials;
+    std::vector<MeshData>            m_Meshes;
+    ObjectData                       m_RootObject;
 
   public:
     const std::vector<MaterialData> &GetMaterials() const noexcept { return m_Materials; }

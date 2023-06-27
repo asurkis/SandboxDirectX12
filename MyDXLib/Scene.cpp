@@ -4,33 +4,41 @@
 
 using namespace DirectX;
 
+Texture::Texture(
+    PDevice device, ResourceUploadBatch &rub, DescriptorHeap &heap, const wchar_t *path, size_t descriptorId)
+    : m_DescriptorHeap(heap),
+      m_DescriptorId(descriptorId)
+{
+    Assert(CreateWICTextureFromFile(device.Get(), rub, path, m_Data.ReleaseAndGetAddressOf()));
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
+    desc.Format                          = DXGI_FORMAT_UNKNOWN;
+    desc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURE2D;
+    desc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    desc.Texture2D.MostDetailedMip       = 0;
+    desc.Texture2D.MipLevels             = -1;
+    desc.Texture2D.PlaneSlice            = 0;
+    desc.Texture2D.ResourceMinLODClamp   = 0.0f;
+    device->CreateShaderResourceView(m_Data.Get(), &desc, m_DescriptorHeap.GetCpuHandle(m_DescriptorId));
+}
+
+void Texture::Draw(PGraphicsCommandList commandList) const
+{
+    commandList->SetGraphicsRootDescriptorTable(1, m_DescriptorHeap.GetGpuHandle(m_DescriptorId));
+}
+
 Material::Material(
     PDevice device, ResourceUploadBatch &rub, DescriptorHeap &heap, const MaterialData &data, size_t &takenId)
-    : m_DescriptorHeap(heap)
 {
     for (size_t i = 0; i < TEXTURE_TYPE_COUNT; ++i)
-        m_DescriptorIdx[i] = ~0;
-
-    for (size_t i = 0; i < TEXTURE_TYPE_COUNT; ++i)
     {
-        size_t id          = takenId++;
-        m_DescriptorIdx[i] = id;
+        size_t id = takenId++;
 
         if (data.TexturePaths[i].empty())
             continue;
 
-        Assert(CreateWICTextureFromFile(
-            device.Get(), rub, data.TexturePaths[i].c_str(), m_Textures[i].ReleaseAndGetAddressOf()));
-
-        D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
-        desc.Format                          = DXGI_FORMAT_UNKNOWN;
-        desc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURE2D;
-        desc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        desc.Texture2D.MostDetailedMip       = 0;
-        desc.Texture2D.MipLevels             = -1;
-        desc.Texture2D.PlaneSlice            = 0;
-        desc.Texture2D.ResourceMinLODClamp   = 0.0f;
-        device->CreateShaderResourceView(m_Textures[i].Get(), &desc, m_DescriptorHeap.GetCpuHandle(id));
+        // TODO: memory leak
+        m_Textures[i] = new Texture(device, rub, heap, data.TexturePaths[i].c_str(), id);
     }
 }
 
@@ -38,7 +46,7 @@ void Material::Draw(PGraphicsCommandList commandList) const
 {
     if (!m_Textures[0])
         return;
-    commandList->SetGraphicsRootDescriptorTable(1, m_DescriptorHeap.GetGpuHandle(m_DescriptorIdx[0]));
+    m_Textures[0]->Draw(commandList);
 }
 
 void Mesh::QueryInit(PDevice device, ResourceUploadBatch &rub, const MeshData &data, const Material *material)
